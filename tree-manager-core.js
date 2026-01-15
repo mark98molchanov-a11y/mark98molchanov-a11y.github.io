@@ -769,9 +769,11 @@ resetZoom(centerOnParent = false) {
                     });
                     
                     parentElement.classList.add('highlight-parent');
-                    setTimeout(() => {
-                        parentElement.classList.remove('highlight-parent');
-                    }, 2000);
+setTimeout(() => {
+    if (parentElement) {
+        parentElement.classList.remove('highlight-parent');
+    }
+}, 2000);
                 }
             }, 50);
         }
@@ -4887,9 +4889,9 @@ centerOnElement(element) {
         }, 300);
         
         element.classList.add('highlight-parent');
-        setTimeout(() => {
-            element.classList.remove('highlight-parent');
-        }, 1500);
+ setTimeout(() => {
+    element.classList.remove('highlight-parent');
+}, 1500);
         
     } catch (error) {
         console.error('Ошибка при центрировании:', error);
@@ -5190,9 +5192,9 @@ collapseParentNode() {
             treeContainer.scrollLeft = currentScroll.left + deltaX;
             treeContainer.scrollTop = currentScroll.top + deltaY;
             newParentElement.classList.add('highlight-parent');
-            setTimeout(() => {
-                newParentElement.classList.remove('highlight-parent');
-            }, 1000);
+setTimeout(() => {
+    newParentElement.classList.remove('highlight-parent');
+}, 1000);
         });
         this.saveData();
         this.showNotification('Родительский узел и все его внутренние узлы свернуты');
