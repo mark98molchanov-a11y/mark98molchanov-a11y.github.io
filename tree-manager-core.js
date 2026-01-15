@@ -60,6 +60,72 @@ this.maxHistoryLength = 50;
         this.db = new IndexedDBManager();
         this.initialize();
     }
+escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+escapeHTML(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+safeHTML(htmlString) {
+    const template = document.createElement('template');
+    template.innerHTML = htmlString;
+    return template.content;
+}
+
+highlightTextSafely(text, searchTerms) {
+    if (!searchTerms || searchTerms.length === 0) {
+        return document.createTextNode(text);
+    }
+    
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    let textToSearch = text;
+
+    const matches = [];
+    searchTerms.forEach(term => {
+        if (term.length < 2) return;
+        
+        const escapedTerm = this.escapeRegExp(term);
+        const regex = new RegExp(escapedTerm, 'gi');
+        let match;
+        
+        while ((match = regex.exec(textToSearch)) !== null) {
+            matches.push({
+                index: match.index,
+                length: match[0].length,
+                text: match[0]
+            });
+        }
+    });
+    
+    matches.sort((a, b) => a.index - b.index);
+    
+    for (const match of matches) {
+        // Текст до совпадения
+        if (match.index > lastIndex) {
+            fragment.appendChild(document.createTextNode(
+                text.substring(lastIndex, match.index)
+            ));
+        }
+        
+        const highlightSpan = document.createElement('span');
+        highlightSpan.className = 'search-match-highlight';
+        highlightSpan.textContent = text.substring(match.index, match.index + match.length);
+        fragment.appendChild(highlightSpan);
+        
+        lastIndex = match.index + match.length;
+    }
+    
+    if (lastIndex < text.length) {
+        fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+    }
+    
+    return fragment;
+}
     async initialize() {
         try {
             this.bindElements();
@@ -294,43 +360,53 @@ handleSearchInput(query) {
         collectWords(this.treeData);
         return Array.from(words).sort();
     }
-    showSuggestions(query) {
-        const words = this.getAllWords();
-        const suggestions = words.filter(word => 
-            word.includes(query.toLowerCase())
-        ).slice(0, 10);
-        
-        if (suggestions.length > 0) {
-            this.searchSuggestions.innerHTML = '';
-            suggestions.forEach(word => {
-                const suggestion = document.createElement('div');
-                suggestion.className = 'autocomplete-suggestion';
+showSuggestions(query) {
+    const words = this.getAllWords();
+    const suggestions = words.filter(word => 
+        word.includes(query.toLowerCase())
+    ).slice(0, 10);
+    
+    if (suggestions.length > 0) {
+        this.searchSuggestions.innerHTML = '';
+        suggestions.forEach(word => {
+            const suggestion = document.createElement('div');
+            suggestion.className = 'autocomplete-suggestion';
+            
+            const index = word.indexOf(query.toLowerCase());
+            if (index >= 0) {
+                const before = word.substring(0, index);
+                const match = word.substring(index, index + query.length);
+                const after = word.substring(index + query.length);
                 
-                const index = word.indexOf(query.toLowerCase());
-                if (index >= 0) {
-                    const before = word.substring(0, index);
-                    const match = word.substring(index, index + query.length);
-                    const after = word.substring(index + query.length);
-                    
-                    suggestion.innerHTML = `${before}<strong>${match}</strong>${after}`;
-                } else {
-                    suggestion.textContent = word;
-                }
+                const fragment = document.createDocumentFragment();
                 
-                suggestion.addEventListener('click', () => {
-                    this.searchInput.value = word;
-                    this.handleSearchInput(word);
-                    this.searchInput.focus();
-                });
+                fragment.appendChild(document.createTextNode(before));
                 
-                this.searchSuggestions.appendChild(suggestion);
+                const strongElem = document.createElement('strong');
+                strongElem.textContent = match;
+                fragment.appendChild(strongElem);
+                
+                fragment.appendChild(document.createTextNode(after));
+                
+                suggestion.appendChild(fragment);
+            } else {
+                suggestion.textContent = word;
+            }
+            
+            suggestion.addEventListener('click', () => {
+                this.searchInput.value = word;
+                this.handleSearchInput(word);
+                this.searchInput.focus();
             });
             
-            this.searchSuggestions.style.display = 'block';
-        } else {
-            this.searchSuggestions.style.display = 'none';
-        }
+            this.searchSuggestions.appendChild(suggestion);
+        });
+        
+        this.searchSuggestions.style.display = 'block';
+    } else {
+        this.searchSuggestions.style.display = 'none';
     }
+}
       getVisibleNodes() {
     const visibleNodes = new Set();
     const walkTree = (node, depth = 0) => {
@@ -7274,47 +7350,47 @@ if(node.isExpanded) {
             this.selectedNode = { node, element: nodeElement };
         }
 if (this.searchQuery && this.shouldShowNode(node)) {
-    const highlightText = (text) => {
-        if (!this.searchQuery) return text;
-        
-        const searchTerms = this.searchQuery.toLowerCase().split(/\s+/);
-        let result = text;
-        
-        searchTerms.forEach(term => {
-            if (term.length < 2) return;
-            
-            const regex = new RegExp(`(${term})`, 'gi');
-            result = result.replace(regex, '<span class="search-match-highlight">$1</span>');
-        });
-        
-        return result;
-    };
+    const searchTerms = this.searchQuery.toLowerCase().split(/\s+/).filter(term => term.length > 1);
+    
+    nodeTitle.innerHTML = '';
+    nodeTitle.appendChild(this.highlightTextSafely(node.content.text, searchTerms));
 
-    nodeTitle.innerHTML = highlightText(node.content.text);
-
-if (node.content.subBlocks) {
-    node.content.subBlocks.forEach((subBlock, index) => {
-        const subBlockElement = subBlocksContainer.children[index];
-        if (subBlockElement) {
-            const textSpan = subBlockElement.querySelector('span');
-            if (textSpan) {
-                if (this.isValidEmail(subBlock)) {
-                    const link = textSpan.querySelector('a');
-                    if (link) {
-                        link.innerHTML = highlightText(link.textContent);
+    if (node.content.subBlocks) {
+        node.content.subBlocks.forEach((subBlock, index) => {
+            const subBlockElement = subBlocksContainer.children[index];
+            if (subBlockElement) {
+                const textSpan = subBlockElement.querySelector('span');
+                if (textSpan) {
+                    textSpan.innerHTML = '';
+                    
+                    if (this.isValidEmail(subBlock)) {
+                        const link = document.createElement('a');
+                        link.href = 'https://email.yanao.ru/';
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        link.appendChild(this.highlightTextSafely(subBlock, searchTerms));
+                        const mailIcon = document.createElement('span');
+                        mailIcon.textContent = '✉️ ';
+                        mailIcon.style.marginRight = '3px';
+                        link.prepend(mailIcon);
+                        textSpan.appendChild(link);
+                    } else if (this.isValidUrl(subBlock)) {
+                        const link = document.createElement('a');
+                        const url = subBlock.startsWith('http') ? subBlock : `https://${subBlock}`;
+                        link.href = url;
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        link.textContent = this.extractDomain(subBlock);
+                        link.title = url;
+                        textSpan.appendChild(link);
+                    } else {
+                        textSpan.appendChild(this.highlightTextSafely(subBlock, searchTerms));
                     }
-                } else if (this.isValidUrl(subBlock)) {
-                    const link = textSpan.querySelector('a');
-                    if (link) {
-                        link.innerHTML = highlightText(link.textContent);
-                    }
-                } else {
-                    textSpan.innerHTML = highlightText(subBlock);
                 }
             }
-        }
-    });
-}
+        });
+    }
+    
     if (node.content.files) {
         node.content.files.forEach((fileId, index) => {
             const fileElement = subBlocksContainer.children[
@@ -7323,9 +7399,9 @@ if (node.content.subBlocks) {
             if (fileElement) {
                 const fileSpan = fileElement.querySelector('span');
                 if (fileSpan) {
-                    // Используем оригинальное название из атрибута
                     const originalName = fileSpan.getAttribute('data-original-name') || '';
-                    fileSpan.innerHTML = highlightText(originalName);
+                    fileSpan.innerHTML = '';
+                    fileSpan.appendChild(this.highlightTextSafely(originalName, searchTerms));
                 }
             }
         });
@@ -8691,90 +8767,6 @@ updateDepartmentNodeSelectionVisuals(node, isSelected, recursive = false) {
             this.updateDepartmentNodeSelectionVisuals(child, isSelected, true);
         });
     }
-}
-performMultiTargetRestructure(groups) {
-    this.saveToHistory(false, true);
-
-    let totalMoved = 0;
-    let totalDeleted = 0;
-    groups.forEach(group => {
-        group.state.forEach((state) => {
-            if (state === 'move') totalMoved++;
-            if (state === 'delete') totalDeleted++;
-        });
-    });
-
-    const logParts = [];
-    if (totalMoved > 0) logParts.push(`перемещено ${totalMoved} узлов`);
-    if (totalDeleted > 0) logParts.push(`удалено ${totalDeleted} узлов`);
-    if (logParts.length > 0) {
-        this.logAction(`Реструктуризация: ${logParts.join(', ')}.`);
-    }
-
-    const allNodesToModify = new Set();
-    const nodesToDelete = new Set();
-    const moveOperations = [];
-    let errorOccurred = false;
-
-    groups.forEach((group, index) => {
-        if (errorOccurred) return;
-        const nodesToMoveInGroup = new Set();
-        group.state.forEach((state, id) => {
-            allNodesToModify.add(id);
-            if (state === 'delete') {
-                nodesToDelete.add(id);
-            } else if (state === 'move') {
-                nodesToMoveInGroup.add(id);
-            }
-        });
-
-        if (nodesToMoveInGroup.size > 0) {
-            if (!group.targetId) {
-                this.showNotification(`Не выбран целевой узел для Группы №${index + 1}`, 'error');
-                errorOccurred = true;
-                return;
-            }
-            moveOperations.push({
-                nodes: nodesToMoveInGroup,
-                targetId: group.targetId
-            });
-        }
-    });
-
-    if (errorOccurred) return;
-
-    nodesToDelete.forEach(id => allNodesToModify.add(id));
-
-    moveOperations.forEach(op => {
-        op.hierarchy = this.buildPreservedHierarchy(op.nodes);
-    });
-
-    const newRootChildren = [];
-    this.treeData.children.forEach(child => {
-        const result = this.restructureAndPruneTree(child, allNodesToModify);
-        newRootChildren.push(...result);
-    });
-    this.treeData.children = newRootChildren;
-
-    moveOperations.forEach(op => {
-        const targetNode = this.findNode(this.treeData, op.targetId);
-        if (targetNode) {
-            if (!targetNode.children) {
-                targetNode.children = [];
-            }
-            targetNode.children.push(...op.hierarchy);
-            targetNode.isExpanded = true;
-            const targetCluster = this.clusters.get(targetNode.id);
-            this.recursivelyUpdateCluster(op.hierarchy, targetCluster);
-
-        } else {
-            console.error(`Критическая ошибка: Целевой узел с ID ${op.targetId} не найден после удаления веток.`);
-        }
-    });
-
-    this.updateTree();
-    this.saveData();
-    this.showNotification('Реструктуризация успешно выполнена.');
 }
 performRestructure(selectedNodesWithState, targetId) {
     const nodesToMoveIds = new Set();
