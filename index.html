@@ -39,6 +39,7 @@
         
         <button type="button" id="jsonExportBtn">JSON Экспорт</button>
         <button type="button" id="jsonImportBtn">JSON Импорт</button>
+        <button type="button" id="loadFromGitHubBtn">Загрузить из GitHub</button>
         <button type="button" id="saveBtn">Сохранить</button>
         <button type="button" id="collapseAllBtn">Свернуть все</button>
         <button type="button" id="collapseParentBtn" class="collapse-parent-btn">Свернуть родителя</button>
@@ -91,6 +92,23 @@
         </div>
         <div class="department-container" id="departmentContainer"></div>
     </div>
+    <div class="modal-backdrop" id="githubModalBackdrop" style="display: none;">
+        <div class="modal github-modal">
+            <h3>Загрузка дерева из GitHub</h3>
+            <div class="modal-content">
+                <p>Введите данные репозитория GitHub:</p>
+                <input type="text" id="githubOwner" placeholder="Владелец (например: mark98molchanov-a11y)" style="width: 100%; padding: 8px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--primary-color); background: var(--controls-bg); color: var(--text-color);">
+                <input type="text" id="githubRepo" placeholder="Репозиторий (например: mark98molchanov-a11y.github.io)" style="width: 100%; padding: 8px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--primary-color); background: var(--controls-bg); color: var(--text-color);">
+                <input type="password" id="githubToken" placeholder="GitHub Token (опционально)" style="width: 100%; padding: 8px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--primary-color); background: var(--controls-bg); color: var(--text-color);">
+                <p style="font-size: 0.9em; color: #888;">Используйте свой GitHub токен для доступа к приватным репозиториям</p>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button id="githubLoadBtn" style="flex: 1; padding: 10px; background: var(--accent-color); color: white; border: none; border-radius: 8px;">Загрузить</button>
+                    <button id="githubCancelBtn" style="flex: 1; padding: 10px; background: #555; color: white; border: none; border-radius: 8px;">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div id="tooltip-container" class="tooltip" style="display: none;"></div>
     <script src="node-effects.js"></script>
     <script src="indexed-db-manager.js"></script>
