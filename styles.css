@@ -2500,4 +2500,30 @@ max-width: 300px;
     font-size: 40px;
     background: linear-gradient(145deg, #FFA500, #FF8C00); 
 }
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
+.modal {
+    background: var(--controls-bg);
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 400px;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    color: var(--text-color);
+}
+
+.github-modal h3 {
+    margin-top: 0;
+    color: var(--accent-color);
+}
