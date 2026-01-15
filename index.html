@@ -4,236 +4,360 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Интерактивное дерево - Apache Superset Embed</title>
-    <meta http-equiv="Content-Security-Policy" 
-          content="script-src 'self' https://cdn.jsdelivr.net;
-                   style-src 'self' 'unsafe-inline';
-                   img-src 'self' data: blob:;">
-    
     <link rel="stylesheet" href="styles.css">
-    
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.2/dist/fetch.umd.min.js"></script>
-    
 </head>
 
 <body class="transition-colors duration-300">
-    <div class="toggle-controls" id="toggleControls">≡</div>
-    
-    <div class="background-text">
-        <h1>Департамент имущественных отношений Ямало-Ненецкого автономного округа</h1>
-    </div>
-    
-    <div class="controls" id="controls">
-        <input type="text" id="searchInput" placeholder="Поиск..." style="padding: 8px; border-radius: 8px; border: 1px solid var(--primary-color);">
-        <span id="selectedCount" style="margin-left: 10px; font-size: 0.9em; color: var(--accent-color); display: none;">Выделено: 0</span>
-        <div class="autocomplete-suggestions" id="searchSuggestions"></div>
-        <button type="button" id="saveCloudBtn" title="Сохранить дерево в GitHub">💾 Сохранить в облако</button>
-        <button type="button" id="loadCloudBtn" title="Загрузить дерево из GitHub">☁️ Загрузить из облака</button>
-        <button type="button" id="shareLinkBtn" title="Создать ссылку для коллег">🔗 Создать ссылку</button>
-        <div style="width: 1px; height: 20px; background: var(--border-color); margin: 0 5px;"></div>
-        <button type="button" id="jsonExportBtn">JSON Экспорт</button>
-        <button type="button" id="jsonImportBtn">JSON Импорт</button>
-        <button type="button" id="saveBtn">Сохранить локально</button>
+    <div id="app-container">
+        <div class="toggle-controls" id="toggleControls">≡</div>
         
-        <button type="button" id="collapseAllBtn">Свернуть все</button>
-        <button type="button" id="collapseParentBtn" class="collapse-parent-btn">Свернуть родителя</button>
+        <div class="background-text">
+            <h1>Департамент имущественных отношений Ямало-Ненецкого автономного округа</h1>
+        </div>
         
-        <button type="button" id="addSuperordinateAboveBtn">Добавить сверху</button>
-        <button type="button" id="uploadFileBtn">Загрузить файл</button>
-        
-        <button type="button" id="mark269Btn">Отсутствует в 269-П</button>
-        <button type="button" id="power269Btn">Полномочие из 269-П</button>
-        <button type="button" id="subordinateBtn">Должностные регламенты</button>
-        <button type="button" id="forAllBtn">Все сотрудники</button>
-        <button type="button" id="authorityBtn">Идентичное полномочие</button>
-        <button type="button" id="okrBtn">OKR</button>
-        <button type="button" id="indicatorBtn">Гос. программа</button>
-        <div class="cluster-controls" style="display: flex; gap: 5px; align-items: center;">
-            <select id="clusterSelect" style="padding: 8px; border-radius: 8px; border: 1px solid var(--primary-color); background: var(--controls-bg); color: var(--text-color);">
+        <div class="controls" id="controls">
+            <input type="text" id="searchInput" placeholder="Поиск...">
+            <span id="selectedCount">Выделено: 0</span>
+            
+            <button type="button" id="saveCloudBtn">💾 Сохранить в облако</button>
+            <button type="button" id="loadCloudBtn">☁️ Загрузить из облака</button>
+            <button type="button" id="shareLinkBtn">🔗 Создать ссылку</button>
+            
+            <button type="button" id="jsonExportBtn">JSON Экспорт</button>
+            <button type="button" id="jsonImportBtn">JSON Импорт</button>
+            <button type="button" id="saveBtn">Сохранить локально</button>
+            <button type="button" id="collapseAllBtn">Свернуть все</button>
+            <button type="button" id="collapseParentBtn">Свернуть родителя</button>
+            <button type="button" id="addSuperordinateAboveBtn">Добавить сверху</button>
+            <button type="button" id="uploadFileBtn">Загрузить файл</button>
+            
+            <button type="button" id="mark269Btn">Отсутствует в 269-П</button>
+            <button type="button" id="power269Btn">Полномочие из 269-П</button>
+            <button type="button" id="subordinateBtn">Должностные регламенты</button>
+            <button type="button" id="forAllBtn">Все сотрудники</button>
+            <button type="button" id="authorityBtn">Идентичное полномочие</button>
+            <button type="button" id="okrBtn">OKR</button>
+            <button type="button" id="indicatorBtn">Гос. программа</button>
+            
+            <select id="clusterSelect">
                 <option value="">Вся структура</option>
             </select>
-            <button id="addToClusterBtn" title="Добавить в кластер">🏷️</button>
+            <button id="addToClusterBtn">🏷️</button>
+            
+            <button type="button" id="zoomInBtn">+</button>
+            <button type="button" id="zoomResetBtn">⭕</button>
+            <button type="button" id="zoomOutBtn">-</button>
+            
+            <div class="theme-switch" id="themeSwitch">
+                <span class="theme-icon sun-icon">☀️</span>
+                <span class="theme-icon moon-icon">🌙</span>
+                <div class="theme-switch-handle"></div>
+            </div>
         </div>
-        <button type="button" id="zoomInBtn">+</button>
-        <button type="button" id="zoomResetBtn" class="reset-zoom-btn" title="Сбросить масштаб и центрировать на родительском узле">⭕</button>
-        <button type="button" id="zoomOutBtn">-</button>
-        <div class="theme-switch" id="themeSwitch">
-            <span class="theme-icon sun-icon">☀️</span>
-            <span class="theme-icon moon-icon">🌙</span>
-            <div class="theme-switch-handle"></div>
-            <div class="theme-transition-overlay" id="themeTransitionOverlay"></div>
+        
+        <div class="drop-zone" id="dropZone">Перетащите файл сюда</div>
+        
+        <div id="tree" class="tree">
+            <div class="tree-loading" id="treeLoading">
+                <div class="loading-spinner"></div>
+                <p>Загрузка дерева...</p>
+            </div>
+        </div>
+        
+        <div class="watermark">Interactive Tree v9.2</div>
+        <div class="history-log-icon" id="historyLogIcon">🕒</div>
+    </div>
+
+    <div id="app-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+        <div style="text-align: center;">
+            <div class="spinner" style="width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+            <p style="font-size: 18px;">Загрузка приложения...</p>
+            <p id="load-status" style="font-size: 14px; color: #666;">Инициализация</p>
         </div>
     </div>
-    
-    <div class="drop-zone" id="dropZone">Перетащите файл сюда</div>
-    <div id="tree" class="tree"></div>
-    
-    <div class="image-preview-container" id="previewContainer">
-        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="image-preview" id="fullPreview">
-    </div>
-    
-    <div class="watermark">Interactive Tree v9.2</div>
-    <div class="history-log-icon" id="historyLogIcon" title="История изменений">🕒</div>
-    
-    <div class="history-dialog-backdrop" id="historyDialogBackdrop">
-        <div class="history-dialog">
-            <h3>История последних изменений</h3>
-            <ul class="history-list" id="historyList"></ul>
-            <button class="history-dialog-close" id="historyDialogClose">Закрыть</button>
-        </div>
-    </div>
-    
-    <div class="department-management" id="departmentManagement">
-        <div class="department-header">
-            <h2>Управление отделами</h2>
-            <button id="closeDepartmentManagement">× Закрыть</button>
-        </div>
-        <div class="department-container" id="departmentContainer"></div>
-    </div>
-    
-    <div id="tooltip-container" class="tooltip" style="display: none;"></div>
-    <script src="node-effects.js"></script>
-    <script src="indexed-db-manager.js"></script>
-    <script src="tree-manager-core.js"></script>
-    <script src="tree-storage.js"></script>
-    <script src="tree-cloud.js"></script>
-    <script src="main.js"></script>
+
     <script>
-    (function() {
-        const isChrome = !!window.chrome && (!!window.chrome.webstore || !!window.chrome.runtime);
-        if (isChrome && parseInt(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] || 0) < 50) {
-            console.warn('Пожалуйста, обновите браузер до последней версии');
-            setTimeout(() => {
-                const notification = document.createElement('div');
-                notification.style.cssText = `
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    background: #ff9800;
-                    color: white;
-                    padding: 10px 15px;
-                    border-radius: 5px;
-                    z-index: 10000;
-                    max-width: 300px;
-                `;
-                notification.textContent = 'Рекомендуем использовать последнюю версию браузера';
-                document.body.appendChild(notification);
-                setTimeout(() => notification.remove(), 5000);
-            }, 1000);
+    window.appState = {
+        scriptsLoaded: 0,
+        totalScripts: 6,
+        isInitialized: false,
+        hasError: false
+    };
+
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        function checkAndLoadPolyfills() {
-            const polyfills = [];
-            
-            if (!window.Promise) {
-                polyfills.push('Promise');
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js';
-                document.head.appendChild(script);
-            }
-            
-            if (!window.fetch) {
-                polyfills.push('fetch');
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.2/dist/fetch.umd.min.js';
-                document.head.appendChild(script);
-            }
-            
-            if (polyfills.length > 0) {
-                console.log('Загружены полифиллы:', polyfills.join(', '));
-            }
+        .tree-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px;
+            color: var(--text-color);
         }
-        setTimeout(checkAndLoadPolyfills, 100);
-        if (window.treeApp) {
-            window.treeApp.initialize();
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
         }
-        window.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() {
-                if (window.initCloudStorage) {
-                    initCloudStorage();
-                }
-                const saveCloudBtn = document.getElementById('saveCloudBtn');
-                const loadCloudBtn = document.getElementById('loadCloudBtn');
-                const shareLinkBtn = document.getElementById('shareLinkBtn');
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+            border: 1px solid #ffcdd2;
+        }
+        .retry-button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    `;
+    document.head.appendChild(style);
+
+    function loadScript(src, isCritical = false) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = false; // Важно: последовательная загрузка
+            
+            script.onload = () => {
+                console.log(`✅ Загружен: ${src}`);
+                window.appState.scriptsLoaded++;
+                updateLoaderStatus();
+                resolve();
+            };
+            
+            script.onerror = (error) => {
+                console.error(`❌ Ошибка загрузки: ${src}`, error);
                 
-                if (saveCloudBtn) {
-                    saveCloudBtn.addEventListener('click', function(e) {
-                        if (window.saveTreeToCloud) {
-                            saveTreeToCloud.call(this, e);
-                        } else {
-                            console.error('Функция saveTreeToCloud не найдена');
-                            alert('Облачное сохранение недоступно. Проверьте загрузку tree-cloud.js');
-                        }
-                    });
+                if (isCritical) {
+                    window.appState.hasError = true;
+                    showCriticalError(`Не удалось загрузить ${src}`);
                 }
                 
-                if (loadCloudBtn) {
-                    loadCloudBtn.addEventListener('click', function(e) {
-                        if (window.loadTreeFromCloud) {
-                            loadTreeFromCloud.call(this, e);
-                        } else {
-                            console.error('Функция loadTreeFromCloud не найдена');
-                            alert('Облачная загрузка недоступна. Проверьте загрузку tree-cloud.js');
-                        }
-                    });
-                }
-                
-                if (shareLinkBtn) {
-                    shareLinkBtn.addEventListener('click', function(e) {
-                        if (window.shareTreeLink) {
-                            shareTreeLink.call(this, e);
-                        } else {
-                            console.error('Функция shareTreeLink не найдена');
-                            alert('Создание ссылки недоступно. Проверьте загрузку tree-cloud.js');
-                        }
-                    });
-                }
-                setTimeout(function() {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const treeParam = urlParams.get('tree');
-                    const dataParam = urlParams.get('data');
-                    
-                    if ((treeParam || dataParam) && window.autoLoadTreeOnStart) {
-                        console.log('Обнаружены данные в URL, запускаем автозагрузку...');
-                        autoLoadTreeOnStart();
-                    }
-                }, 2000);
-                
-            }, 1500);
+                reject(error);
+            };
+            
+            document.body.appendChild(script);
         });
-        window.debugCloudStorage = function() {
-            console.log('=== Отладка облачного хранилища ===');
-            console.log('TreeStorage доступен:', typeof TreeStorage !== 'undefined');
-            console.log('treeStorage инициализирован:', typeof treeStorage !== 'undefined');
-            console.log('saveTreeToCloud доступна:', typeof saveTreeToCloud === 'function');
-            console.log('loadTreeFromCloud доступна:', typeof loadTreeFromCloud === 'function');
-            console.log('shareTreeLink доступна:', typeof shareTreeLink === 'function');
-            console.log('LZString доступен:', typeof LZString !== 'undefined');
-            console.log('Токен в localStorage:', localStorage.getItem('githubToken'));
-            if (window.getCurrentTreeData) {
-                const treeData = getCurrentTreeData();
-                console.log('Текущее дерево:', treeData);
-                console.log('Размер дерева (символов):', JSON.stringify(treeData).length);
+    }
+
+    function updateLoaderStatus() {
+        const status = document.getElementById('load-status');
+        if (status) {
+            const percent = Math.round((window.appState.scriptsLoaded / window.appState.totalScripts) * 100);
+            status.textContent = `Загрузка скриптов: ${percent}%`;
+        }
+    }
+
+    function showCriticalError(message) {
+        const loader = document.getElementById('app-loader');
+        if (loader) {
+            loader.innerHTML = `
+                <div style="text-align: center; padding: 30px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                    <h3 style="color: #c62828;">Ошибка загрузки</h3>
+                    <p>${message}</p>
+                    <div class="error-message" style="text-align: left; margin: 20px auto; max-width: 500px;">
+                        <p><strong>Что можно сделать:</strong></p>
+                        <ol>
+                            <li>Обновите страницу (F5)</li>
+                            <li>Очистите кэш браузера</li>
+                            <li>Проверьте соединение с интернетом</li>
+                            <li>Если проблема сохраняется, свяжитесь с разработчиком</li>
+                        </ol>
+                    </div>
+                    <button class="retry-button" onclick="location.reload()">Обновить страницу</button>
+                </div>
+            `;
+        }
+    }
+
+    function hideLoader() {
+        const loader = document.getElementById('app-loader');
+        if (loader) {
+            loader.style.opacity = '0';
+            loader.style.transition = 'opacity 0.5s';
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 500);
+        }
+    }
+
+    function showTree() {
+        const loading = document.getElementById('treeLoading');
+        if (loading) {
+            loading.style.display = 'none';
+        }
+    }
+    async function initializeApp() {
+        console.log('🚀 Инициализация приложения...');
+        
+        try {
+            // 1. Загружаем основные скрипты ПОСЛЕДОВАТЕЛЬНО
+            await loadScript('node-effects.js', true);
+            await loadScript('indexed-db-manager.js', true);
+            await loadScript('tree-manager-core.js', true);
+            
+            // 2. Загружаем облачные скрипты (не критично)
+            try {
+                await loadScript('tree-storage.js');
+            } catch (e) {
+                console.warn('tree-storage.js не загружен, облачные функции недоступны');
             }
             
-            const urlParams = new URLSearchParams(window.location.search);
-            console.log('Параметр tree в URL:', urlParams.get('tree') ? 'есть' : 'нет');
-            console.log('Параметр data в URL:', urlParams.get('data') ? 'есть' : 'нет');
-            if (typeof LZString !== 'undefined') {
-                const testData = { test: 'Hello World' };
-                const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(testData));
-                console.log('Тест сжатия LZString:', {
-                    оригинал: JSON.stringify(testData).length,
-                    сжатый: compressed.length,
-                    коэффициент: (JSON.stringify(testData).length / compressed.length).toFixed(2)
+            try {
+                await loadScript('tree-cloud.js');
+            } catch (e) {
+                console.warn('tree-cloud.js не загружен, облачные функции недоступны');
+            }
+            
+            // 3. Загружаем основной скрипт
+            await loadScript('main.js', true);
+            
+            console.log('✅ Все скрипты загружены');
+            
+            setTimeout(() => {
+                if (typeof window.treeApp !== 'undefined' && typeof window.treeApp.initialize === 'function') {
+                    window.treeApp.initialize();
+                } else if (typeof initTreeApp === 'function') {
+                    initTreeApp();
+                }
+                
+                if (typeof window.initCloudStorage === 'function') {
+                    setTimeout(() => {
+                        window.initCloudStorage();
+                    }, 1000);
+                }
+                
+                showTree();
+                
+                setTimeout(hideLoader, 500);
+                
+                window.appState.isInitialized = true;
+                console.log('✅ Приложение инициализировано');
+                
+                checkAutoLoad();
+                
+            }, 100);
+            
+        } catch (error) {
+            console.error('❌ Ошибка инициализации:', error);
+            showCriticalError('Ошибка при загрузке приложения');
+        }
+    }
+
+    function checkAutoLoad() {
+        console.log('🔍 Проверка автозагрузки данных...');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasTreeParam = urlParams.has('tree') || urlParams.has('data');
+        
+        const hasLocalData = localStorage.getItem('treeData');
+        
+        if (hasTreeParam || hasLocalData) {
+            console.log('Найдены данные для автозагрузки');
+            
+            if (typeof window.autoLoadTreeOnStart === 'function') {
+                setTimeout(() => {
+                    window.autoLoadTreeOnStart();
+                }, 1500);
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('📄 DOM загружен, начинаем инициализацию');
+        initializeApp();
+    });
+
+    window.addEventListener('error', function(e) {
+        console.error('Глобальная ошибка:', e.error);
+    });
+
+    setTimeout(() => {
+        if (!window.appState.isInitialized && !window.appState.hasError) {
+            console.log('⚠️ Приложение медленно загружается, показываем fallback...');
+            
+            setupFallbackControls();
+        }
+    }, 10000);
+
+    function setupFallbackControls() {
+        const saveCloudBtn = document.getElementById('saveCloudBtn');
+        const loadCloudBtn = document.getElementById('loadCloudBtn');
+        
+        if (saveCloudBtn) {
+            saveCloudBtn.onclick = () => alert('Приложение загружается, попробуйте позже');
+        }
+        
+        if (loadCloudBtn) {
+            loadCloudBtn.onclick = () => {
+                alert('Загрузка данных...');
+                try {
+                    const data = localStorage.getItem('treeData');
+                    if (data) {
+                        try {
+                            const treeData = JSON.parse(data);
+                            showSimpleTree(treeData);
+                        } catch (e) {
+                            alert('Ошибка парсинга данных');
+                        }
+                    } else {
+                        alert('Нет сохраненных данных');
+                    }
+                } catch (e) {
+                    alert('Ошибка доступа к хранилищу');
+                }
+            };
+        }
+    }
+
+    function showSimpleTree(treeData) {
+        const treeDiv = document.getElementById('tree');
+        if (!treeDiv) return;
+        
+        let html = '<div class="simple-tree">';
+        
+        function buildTree(data, level = 0) {
+            if (!data) return '';
+            
+            const name = data.name || data.title || 'Элемент';
+            const padding = level * 20;
+            
+            html += `<div style="margin-left: ${padding}px; padding: 5px; border-left: ${level > 0 ? '2px solid #ccc' : 'none'}">`;
+            html += `<strong>${name}</strong>`;
+            
+            if (data.children && Array.isArray(data.children)) {
+                data.children.forEach(child => {
+                    buildTree(child, level + 1);
                 });
             }
-        };
+            
+            html += '</div>';
+        }
         
-    })();
+        buildTree(treeData);
+        html += '</div>';
+        treeDiv.innerHTML = html;
+    }
+
     </script>
 </body>
 </html>
