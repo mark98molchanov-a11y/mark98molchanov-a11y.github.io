@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     window.nodeEffects = new NodeEffects();
     window.treeManager = new TreeManager();
+    window.treeManager.init();
     setupIframeCommunication();
 });
 function setupIframeCommunication() {
