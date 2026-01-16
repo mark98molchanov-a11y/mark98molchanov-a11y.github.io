@@ -1,3 +1,4 @@
+// github-loader.js
 class GitHubLoader {
     constructor(options = {}) {
         this.owner = options.owner || 'mark98molchanov-a11y';
@@ -5,70 +6,64 @@ class GitHubLoader {
         this.branch = options.branch || 'main';
         this.token = options.token || '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';
         this.dataFile = 'tree-data.json';
+        this.rawBase = 'https://raw.githubusercontent.com';
+        this.apiBase = 'https://api.github.com';
     }
 
     async loadTreeData() {
-        console.log('🚀 Загрузка данных из GitHub...');
+        console.log('🚀 Загрузка из GitHub...');
         
-        const rawUrl = `https://raw.githubusercontent.com/${this.owner}/${this.repo}/${this.branch}/${this.dataFile}`;
-        
-        console.log('📡 URL:', rawUrl);
+        const rawUrl = `${this.rawBase}/${this.owner}/${this.repo}/${this.branch}/${this.dataFile}`;
         
         try {
-            const response = await fetch(rawUrl);
-            console.log('📊 Статус:', response.status);
+            console.log('📡 Пробую:', rawUrl);
+            const response = await fetch(rawUrl, {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
+            
+            console.log('📊 Статус:', response.status, response.statusText);
             
             if (response.status === 404) {
-                console.warn('⚠️ Файл не найден в GitHub');
-                return this.getDefaultData();
+                console.warn('⚠️ Файл не найден. Нужно создать tree-data.json в GitHub');
+                return this.createDefaultData();
             }
             
             if (!response.ok) {
-                throw new Error(`Ошибка HTTP ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const text = await response.text();
-            console.log('✅ Данные получены, длина:', text.length, 'символов');
+            console.log('✅ Получено:', text.length, 'символов');
             
-            // Проверяем валидность JSON
-            let data;
             try {
-                data = JSON.parse(text);
+                const data = JSON.parse(text);
+                console.log(`✅ JSON валиден, ${data.length} элементов`);
+                return data;
             } catch (jsonError) {
-                console.error('❌ Ошибка парсинга JSON:', jsonError.message);
-                console.log('Проблемный участок:', text.substring(jsonError.message.match(/position (\d+)/)?.[1] - 50 || 0, 100));
-                
-                // Пробуем починить JSON если есть очевидные ошибки
-                const fixedText = this.tryFixJSON(text);
-                try {
-                    data = JSON.parse(fixedText);
-                    console.log('✅ JSON исправлен автоматически');
-                } catch (fixedError) {
-                    console.error('❌ Не удалось исправить JSON');
-                    return this.getDefaultData();
-                }
+                console.error('❌ Ошибка JSON:', jsonError.message);
+                // Пробуем починить
+                const fixed = this.tryFixJSON(text);
+                return JSON.parse(fixed);
             }
             
-            console.log(`✅ Успешно! Загружено ${data.length} элементов`);
-            return data;
-            
         } catch (error) {
-            console.error('❌ Ошибка загрузки:', error.message);
-            return this.getDefaultData();
+            console.error('❌ Raw GitHub ошибка:', error.message);
+            return this.createDefaultData();
         }
     }
 
     tryFixJSON(text) {
-        let fixed = text
+        console.log('🔧 Пытаюсь исправить JSON...');
+        return text
             .replace(/,\s*}/g, '}')
             .replace(/,\s*]/g, ']')
-            .replace(/([^\\])"/g, '$1"')
-            .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '');
-        
-        return fixed;
+            .replace(/[\x00-\x1F\x7F]/g, '');
     }
 
-    getDefaultData() {
+    createDefaultData() {
         return [
             {
                 "id": "root",
@@ -89,53 +84,44 @@ class GitHubLoader {
     async saveTreeData(treeData) {
         console.log('💾 Сохранение в GitHub...');
         
-        try {
-            localStorage.setItem('treeData_backup', JSON.stringify(treeData, null, 2));
-            console.log('✅ Локальная резервная копия создана');
-        } catch (e) {
-            console.warn('⚠️ Не удалось сохранить локально:', e.message);
-        }
-        
         if (!this.token) {
-            console.warn('⚠️ Токен GitHub не указан. Для сохранения в GitHub создайте токен.');
-            console.log('📝 Инструкция: GitHub → Settings → Developer settings → Personal access tokens → Generate (classic)');
-            console.log('📝 Scope: repo');
+            console.warn('⚠️ Токен GitHub не указан. Не могу сохранить.');
             return false;
         }
         
         try {
-            const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.dataFile}`;
+            const url = `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.dataFile}`;
             
+            // Получаем текущий SHA
+            let sha = null;
             const headers = {
                 'Authorization': `Bearer ${this.token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
+                'Accept': 'application/vnd.github.v3+json'
             };
             
-            let sha = null;
             try {
                 const getResponse = await fetch(`${url}?ref=${this.branch}`, { headers });
                 if (getResponse.ok) {
                     const data = await getResponse.json();
                     sha = data.sha;
-                    console.log('📝 Найден существующий файл, SHA:', sha);
                 }
             } catch (e) {
                 console.log('📝 Файл не существует, создаем новый');
             }
             
+            // Подготавливаем данные
             const content = btoa(JSON.stringify(treeData, null, 2));
             const body = {
-                message: `Обновление от ${new Date().toLocaleString('ru-RU')}`,
+                message: `Обновление от ${new Date().toISOString()}`,
                 content: content,
                 branch: this.branch
             };
             
-            if (sha) {
-                body.sha = sha;
-            }
+            if (sha) body.sha = sha;
             
-            console.log('📤 Отправка в GitHub...');
+            headers['Content-Type'] = 'application/json';
+            
+            console.log('📤 Отправка...');
             const response = await fetch(url, {
                 method: 'PUT',
                 headers: headers,
@@ -144,7 +130,7 @@ class GitHubLoader {
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ Ошибка GitHub API:', response.status, errorText);
+                console.error('❌ GitHub API ошибка:', response.status, errorText);
                 return false;
             }
             
@@ -152,7 +138,7 @@ class GitHubLoader {
             return true;
             
         } catch (error) {
-            console.error('❌ Ошибка сохранения:', error.message);
+            console.error('❌ Ошибка сохранения:', error);
             return false;
         }
     }
