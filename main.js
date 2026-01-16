@@ -1,68 +1,72 @@
 
+function waitForScripts() {
+    return new Promise((resolve) => {
+        const checkScripts = () => {
+            if (typeof TreeManager !== 'undefined' && typeof NodeEffects !== 'undefined') {
+                resolve();
+            } else {
+                setTimeout(checkScripts, 100);
+            }
+        };
+        checkScripts();
+    });
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM загружен, инициализация приложения...');
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOM загружен, проверяем скрипты...');
     
     try {
-        if (typeof NodeEffects !== 'undefined') {
-            window.nodeEffects = new NodeEffects();
-            console.log('NodeEffects инициализирован');
-        } else {
-            console.warn('NodeEffects не определен');
-        }
+        console.log('Ожидаем загрузку TreeManager и NodeEffects...');
+        await waitForScripts();
+        console.log('Все скрипты загружены!');
         
-        if (typeof TreeManager !== 'undefined') {
-            window.treeManager = new TreeManager();
-            console.log('TreeManager создан:', window.treeManager);
-            
-            console.log('Методы TreeManager:');
-            Object.getOwnPropertyNames(Object.getPrototypeOf(window.treeManager)).forEach(method => {
-                console.log(`  - ${method}`);
-            });
-            
-            // Пробуем разные методы инициализации
-            let initSuccessful = false;
-            
-            if (typeof window.treeManager.init === 'function') {
-                console.log('Использую treeManager.init()');
-                window.treeManager.init();
-                initSuccessful = true;
-            } 
-            else if (typeof window.treeManager.initialize === 'function') {
-                console.log('Использую treeManager.initialize()');
-                window.treeManager.initialize();
-                initSuccessful = true;
-            }
-            else if (typeof window.treeManager.load === 'function') {
-                console.log('Использую treeManager.load()');
-                window.treeManager.load();
-                initSuccessful = true;
-            }
-            else {
-                console.log('Прямая инициализация treeManager');
-                // Если нет метода init, просто отмечаем как готовый
-                initSuccessful = true;
-            }
-            
-            if (!initSuccessful) {
-                console.warn('Не удалось инициализировать treeManager стандартными методами');
-            }
-            
+        window.nodeEffects = new NodeEffects();
+        console.log('NodeEffects создан');
+        
+        window.treeManager = new TreeManager();
+        console.log('TreeManager создан');
+        
+        console.log('Доступные методы TreeManager:');
+        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(window.treeManager));
+        methods.forEach(method => {
+            console.log(`  - ${method}`);
+        });
+        
+        if (typeof window.treeManager.init === 'function') {
+            console.log('Вызываю treeManager.init()');
+            window.treeManager.init();
+        } else if (typeof window.treeManager.initialize === 'function') {
+            console.log('Вызываю treeManager.initialize()');
+            window.treeManager.initialize();
+        } else if (typeof window.treeManager.load === 'function') {
+            console.log('Вызываю treeManager.load()');
+            window.treeManager.load();
         } else {
-            console.error('TreeManager не определен! Проверьте tree-manager-core.js');
-            alert('Ошибка: TreeManager не найден. Проверьте консоль для деталей.');
-            return;
+            console.log('Прямая инициализация (метод init не найден)');
+            // Если есть данные в localStorage, загружаем их
+            const savedTree = localStorage.getItem('treeData');
+            if (savedTree) {
+                try {
+                    const treeData = JSON.parse(savedTree);
+                    if (typeof window.treeManager.loadTree === 'function') {
+                        window.treeManager.loadTree(treeData);
+                    }
+                } catch (e) {
+                    console.warn('Не удалось загрузить сохраненное дерево:', e);
+                }
+            }
         }
         
         setupIframeCommunication();
         setupGitHubLoader();
         
-        setTimeout(testGitHubAPI, 1000);
+        // Тестируем GitHub API
+        setTimeout(testGitHubAPI, 500);
         
-        console.log('Приложение успешно инициализировано');
+        console.log('✅ Приложение успешно инициализировано');
         
     } catch (error) {
-        console.error('Критическая ошибка при инициализации:', error);
+        console.error('❌ Критическая ошибка при инициализации:', error);
         alert('Ошибка загрузки приложения: ' + error.message);
     }
 });
@@ -107,10 +111,15 @@ function setupGitHubLoader() {
     console.log('Настройка GitHub загрузчика...');
     
     const loadFromGitHubBtn = document.getElementById('loadFromGitHubBtn');
+    const githubModalBackdrop = document.getElementById('githubModalBackdrop');
+    const githubOwnerInput = document.getElementById('githubOwner');
+    const githubRepoInput = document.getElementById('githubRepo');
+    const githubTokenInput = document.getElementById('githubToken');
+    const githubLoadBtn = document.getElementById('githubLoadBtn');
+    const githubCancelBtn = document.getElementById('githubCancelBtn');
     
     if (!loadFromGitHubBtn) {
         console.error('Кнопка "Загрузить из GitHub" не найдена!');
-        console.log('Доступные кнопки:', document.querySelectorAll('button'));
         return;
     }
     
@@ -118,9 +127,11 @@ function setupGitHubLoader() {
     
     loadFromGitHubBtn.addEventListener('click', function() {
         console.log('✅ Кнопка "Загрузить из GitHub" НАЖАТА!');
-        alert('Кнопка работает! Теперь откроется модальное окно...');
         
-        const githubModalBackdrop = document.getElementById('githubModalBackdrop');
+        if (githubOwnerInput) githubOwnerInput.value = 'mark98molchanov-a11y';
+        if (githubRepoInput) githubRepoInput.value = 'mark98molchanov-a11y.github.io';
+        if (githubTokenInput) githubTokenInput.value = '';
+        
         if (githubModalBackdrop) {
             githubModalBackdrop.style.display = 'flex';
             console.log('Модальное окно открыто');
@@ -130,31 +141,74 @@ function setupGitHubLoader() {
         }
     });
     
-    const githubModalBackdrop = document.getElementById('githubModalBackdrop');
-    const githubCancelBtn = document.getElementById('githubCancelBtn');
-    const githubLoadBtn = document.getElementById('githubLoadBtn');
-    
     if (githubCancelBtn) {
         githubCancelBtn.addEventListener('click', () => {
-            githubModalBackdrop.style.display = 'none';
+            if (githubModalBackdrop) {
+                githubModalBackdrop.style.display = 'none';
+            }
+        });
+    }
+    
+    if (githubModalBackdrop) {
+        githubModalBackdrop.addEventListener('click', (e) => {
+            if (e.target === githubModalBackdrop) {
+                githubModalBackdrop.style.display = 'none';
+            }
         });
     }
     
     if (githubLoadBtn) {
         githubLoadBtn.addEventListener('click', async () => {
-            console.log('Начало загрузки из GitHub...');
-            alert('Функция загрузки вызвана. Проверьте консоль для деталей.');
+            console.log('Кнопка загрузки в модальном окне нажата');
+            
+            const owner = githubOwnerInput ? githubOwnerInput.value.trim() : '';
+            const repo = githubRepoInput ? githubRepoInput.value.trim() : '';
+            const token = githubTokenInput ? githubTokenInput.value.trim() : '';
+            
+            if (!owner) {
+                alert('Введите имя владельца репозитория');
+                return;
+            }
+            
+            if (!repo) {
+                alert('Введите название репозитория');
+                return;
+            }
+            
+            githubLoadBtn.textContent = 'Загрузка...';
+            githubLoadBtn.disabled = true;
             
             try {
-                const testData = await testGitHubConnection();
-                if (testData) {
-                    alert('Соединение с GitHub успешно!');
+                console.log(`Загрузка из GitHub: ${owner}/${repo}`);
+                const treeData = await loadTreeFromGitHub(owner, repo, token);
+                
+                if (treeData) {
+                    await loadTreeIntoApp(treeData);
+                    if (githubModalBackdrop) {
+                        githubModalBackdrop.style.display = 'none';
+                    }
+                    alert('✅ Дерево успешно загружено из GitHub!');
+                } else {
+                    alert('⚠️ Не удалось найти данные дерева в репозитории');
                 }
             } catch (error) {
-                alert('Ошибка: ' + error.message);
+                console.error('Ошибка загрузки из GitHub:', error);
+                alert('❌ Ошибка загрузки: ' + error.message);
+            } finally {
+                githubLoadBtn.textContent = 'Загрузить';
+                githubLoadBtn.disabled = false;
             }
         });
     }
+    
+    const inputs = [githubOwnerInput, githubRepoInput, githubTokenInput].filter(Boolean);
+    inputs.forEach(input => {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && githubLoadBtn) {
+                githubLoadBtn.click();
+            }
+        });
+    });
     
     console.log('GitHub загрузчик настроен');
 }
@@ -239,7 +293,6 @@ async function loadTreeFromGitHub(owner, repo, token) {
                 const treeData = JSON.parse(fileContent);
             
                 if (Array.isArray(treeData) && treeData.length > 0) {
-                    // Проверяем, есть ли у первого элемента id (базовая валидация)
                     if (treeData[0].id !== undefined) {
                         console.log(`✅ Успешно загружены данные из ${source.path}, элементов: ${treeData.length}`);
                         return treeData;
@@ -251,7 +304,6 @@ async function loadTreeFromGitHub(owner, repo, token) {
                 
                 console.log(`Данные из ${source.path} не прошли валидацию`);
             } catch (parseError) {
-                // Если это JS файл, пробуем извлечь данные
                 if (source.path.endsWith('.js')) {
                     console.log('Пробуем извлечь данные из JS файла...');
                     const dataMatch = fileContent.match(/window\.treeData\s*=\s*(\[.*?\]);/s) ||
