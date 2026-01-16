@@ -128,5 +128,18 @@
     <script src="indexed-db-manager.js"></script>
     <script src="tree-manager-core.js"></script>
     <script src="main.js"></script>
+    <script>
+    fetch('https://raw.githubusercontent.com/mark98molchanov-a11y/mark98molchanov-a11y.github.io/main/tree-data.json')
+        .then(response => {
+            if (response.ok) {
+                console.log('GitHub RAW доступен');
+            } else {
+                console.warn('GitHub RAW недоступен:', response.status);
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка проверки GitHub:', error);
+        });
+</script>
 </body>
 </html>
