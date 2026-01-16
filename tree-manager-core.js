@@ -5158,7 +5158,7 @@ async exportToJSON() {
     }
     
     const data = {
-      version: '2.7',
+      version: '2.8',
       tree: this.serializeTree(this.treeData),
       images: imagesToSave,
       filesData: this.filesData,
@@ -5171,17 +5171,10 @@ async exportToJSON() {
       },
       timestamp: Date.now()
     };
+
     const jsonString = JSON.stringify(data);
-    let finalData;
     
-    if (typeof LZString !== 'undefined') {
-      finalData = LZString.compressToUTF16(jsonString);
-    } else {
-      finalData = jsonString;
-      console.warn('LZString not available, exporting uncompressed data');
-    }
-    
-    const blob = new Blob([finalData], { type: 'application/json' });
+    const blob = new Blob([jsonString], { type: 'application/json' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `tree-project_${Date.now()}.json`;
@@ -5205,22 +5198,7 @@ async importFromJSON() {
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
-          const compressed = e.target.result;
-          let jsonString;
-          
-          if (typeof LZString !== 'undefined') {
-            try {
-              jsonString = LZString.decompressFromUTF16(compressed);
-              if (!jsonString) {
-                jsonString = compressed;
-              }
-            } catch (e) {
-              jsonString = compressed;
-            }
-          } else {
-            jsonString = compressed;
-          }
-          
+          const jsonString = e.target.result;
           const data = JSON.parse(jsonString);
           
           if (!data.version || data.version < '2.0') {
@@ -5252,7 +5230,7 @@ this.saveToHistory(true, true);
           
           this.showNotification('Проект успешно импортирован!');
           resolve(true);
-        } catch(error) {
+       } catch(error) {
           console.error('Ошибка импорта:', error);
           this.showNotification(`Ошибка импорта: ${error.message}`);
           resolve(false);
