@@ -1,4 +1,3 @@
-
 function waitForScripts() {
     return new Promise((resolve) => {
         const checkScripts = () => {
@@ -11,120 +10,24 @@ function waitForScripts() {
         checkScripts();
     });
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM загружен, начинаем инициализацию...');
-    
-    console.log('Проверка загруженных классов:');
-    console.log('- TreeManager:', typeof TreeManager);
-    console.log('- NodeEffects:', typeof NodeEffects);
-    console.log('- window.TreeManager:', typeof window.TreeManager);
-    console.log('- window.NodeEffects:', typeof window.NodeEffects);
-    
-    if (typeof TreeManager === 'undefined' || typeof NodeEffects === 'undefined') {
-        console.warn('Классы не загружены, пробуем подождать...');
-        
-        setTimeout(() => {
-            console.log('Повторная проверка после ожидания:');
-            console.log('- TreeManager:', typeof TreeManager);
-            console.log('- NodeEffects:', typeof NodeEffects);
-            
-            if (typeof TreeManager === 'undefined' || typeof NodeEffects === 'undefined') {
-                console.error('Классы так и не загрузились!');
-                console.log('Создаем минимальные реализации...');
-                createFallbackClasses();
-            }
-            
-            initializeApp();
-        }, 2000);
-    } else {
-        initializeApp();
-    }
-});
-function createFallbackClasses() {
-    if (typeof TreeManager === 'undefined') {
-        console.log('Создаю fallback TreeManager');
-        window.TreeManager = class TreeManager {
-            constructor() {
-                this.treeData = [];
-                this.currentNodeId = 1;
-                console.log('Fallback TreeManager создан');
-            }
-            
-            init() {
-                console.log('Fallback TreeManager.init() вызван');
-                this.treeData = [
-                    {
-                        id: 1,
-                        name: "Департамент имущественных отношений",
-                        description: "Ямало-Ненецкий автономный округ"
-                    }
-                ];
-                this.renderTree();
-            }
-            
-            loadTree(data) {
-                console.log('Fallback TreeManager.loadTree() вызван');
-                this.treeData = data || [];
-                this.renderTree();
-            }
-            
-            importFromJSON(data) {
-                return this.loadTree(data);
-            }
-            
-            exportToJSON() {
-                return this.treeData;
-            }
-            
-            renderTree() {
-                const treeContainer = document.getElementById('tree');
-                if (treeContainer) {
-                    treeContainer.innerHTML = '<div class="tree-node"><strong>Дерево загружено (fallback режим)</strong></div>';
-                }
-            }
-        };
-    }
-    
-    if (typeof NodeEffects === 'undefined') {
-        console.log('Создаю fallback NodeEffects');
-        window.NodeEffects = class NodeEffects {
-            constructor() {
-                console.log('Fallback NodeEffects создан');
-            }
-            addEffect() {}
-            removeEffect() {}
-        };
-    }
-}
-function initializeApp() {
-    console.log('Начинаем инициализацию приложения...');
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOM загружен, проверяем скрипты...');
     
     try {
-        if (typeof NodeEffects !== 'undefined') {
-            window.nodeEffects = new NodeEffects();
-            console.log('✅ NodeEffects создан');
-        } else {
-            window.nodeEffects = new window.NodeEffects();
-            console.log('✅ Fallback NodeEffects создан');
-        }
+        console.log('Ожидаем загрузку TreeManager и NodeEffects...');
+        await waitForScripts();
+        console.log('Все скрипты загружены!');
         
-        if (typeof TreeManager !== 'undefined') {
-            window.treeManager = new TreeManager();
-            console.log('✅ TreeManager создан');
-        } else {
-            window.treeManager = new window.TreeManager();
-            console.log('✅ Fallback TreeManager создан');
-        }
+        window.nodeEffects = new NodeEffects();
+        console.log('NodeEffects создан');
         
-        console.log('Проверка методов treeManager:');
-        const methodNames = [
-            'init', 'initialize', 'load', 'loadTree', 
-            'importFromJSON', 'exportToJSON', 'renderTree'
-        ];
+        window.treeManager = new TreeManager();
+        console.log('TreeManager создан');
         
-        methodNames.forEach(method => {
-            console.log(`  - ${method}:`, typeof window.treeManager[method]);
+        console.log('Доступные методы TreeManager:');
+        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(window.treeManager));
+        methods.forEach(method => {
+            console.log(`  - ${method}`);
         });
         
         if (typeof window.treeManager.init === 'function') {
@@ -137,17 +40,18 @@ function initializeApp() {
             console.log('Вызываю treeManager.load()');
             window.treeManager.load();
         } else {
-            console.log('Метод init не найден, пробуем загрузить из localStorage');
-            try {
-                const savedTree = localStorage.getItem('treeData');
-                if (savedTree) {
+            console.log('Прямая инициализация (метод init не найден)');
+            // Если есть данные в localStorage, загружаем их
+            const savedTree = localStorage.getItem('treeData');
+            if (savedTree) {
+                try {
                     const treeData = JSON.parse(savedTree);
                     if (typeof window.treeManager.loadTree === 'function') {
                         window.treeManager.loadTree(treeData);
                     }
+                } catch (e) {
+                    console.warn('Не удалось загрузить сохраненное дерево:', e);
                 }
-            } catch (e) {
-                console.warn('Не удалось загрузить из localStorage:', e);
             }
         }
         
@@ -155,18 +59,16 @@ function initializeApp() {
         setupGitHubLoader();
         
         // Тестируем GitHub API
-        setTimeout(testGitHubAPI, 1000);
+        setTimeout(testGitHubAPI, 500);
         
-        console.log('🎉 Приложение успешно инициализировано!');
+        console.log('✅ Приложение успешно инициализировано');
         
     } catch (error) {
-        console.error('❌ Ошибка при инициализации:', error);
+        console.error('❌ Критическая ошибка при инициализации:', error);
         alert('Ошибка загрузки приложения: ' + error.message);
-        
-        // Показываем хотя бы интерфейс при ошибке
-        setupGitHubLoader();
     }
-}
+});
+
 function setupIframeCommunication() {
     if (window.IFRAME_MODE) {
         if (window.parent !== window) {
@@ -202,7 +104,6 @@ function setupIframeCommunication() {
         resizeForIframe();
     }
 }
-
 function setupGitHubLoader() {
     console.log('Настройка GitHub загрузчика...');
     
@@ -221,157 +122,16 @@ function setupGitHubLoader() {
     
     console.log('Кнопка GitHub найдена, добавляем обработчик...');
     
-    async function testGitHubConnection() {
-        console.log('🚀 Автоматический тест соединения с GitHub...');
-        
-        const testOwner = 'mark98molchanov-a11y';
-        const testRepo = 'mark98molchanov-a11y.github.io';
-        
-        console.log(`Тестируем репозиторий: ${testOwner}/${testRepo}`);
-        
-        const testUrls = [
-            { 
-                url: `https://api.github.com/repos/${testOwner}/${testRepo}`,
-                name: 'GitHub API - репозиторий'
-            },
-            { 
-                url: `https://api.github.com/repos/${testOwner}/${testRepo}/contents/`,
-                name: 'GitHub API - содержимое'
-            },
-            { 
-                url: `https://api.github.com/repos/${testOwner}/${testRepo}/contents/tree-data.json`,
-                name: 'GitHub API - tree-data.json'
-            },
-            { 
-                url: `https://raw.githubusercontent.com/${testOwner}/${testRepo}/main/tree-data.json`,
-                name: 'Raw GitHub - main branch'
-            },
-            { 
-                url: `https://raw.githubusercontent.com/${testOwner}/${testRepo}/master/tree-data.json`,
-                name: 'Raw GitHub - master branch'
-            },
-            { 
-                url: `https://${testOwner}.github.io/tree-data.json`,
-                name: 'GitHub Pages'
-            },
-            { 
-                url: `https://${testOwner}.github.io/${testRepo}/tree-data.json`,
-                name: 'GitHub Pages с репозиторием'
-            }
-        ];
-        
-        let anySuccess = false;
-        
-        for (const test of testUrls) {
-            try {
-                console.log(`Тестируем: ${test.name}`);
-                console.log(`URL: ${test.url}`);
-                
-                const response = await fetch(test.url);
-                console.log(`Статус: ${response.status} ${response.statusText}`);
-                
-                if (response.ok) {
-                    anySuccess = true;
-
-                    if (test.name.includes('API')) {
-                        try {
-                            const data = await response.json();
-                            console.log('✅ Успешно! Данные получены');
-                            
-                            if (test.name.includes('tree-data.json')) {
-                                console.log('🎯 Найден файл tree-data.json!');
-                                console.log('Размер файла:', data.size, 'байт');
-                                console.log('SHA:', data.sha.substring(0, 8) + '...');
-                                
-                                if (githubOwnerInput && githubRepoInput) {
-                                    githubOwnerInput.value = testOwner;
-                                    githubRepoInput.value = testRepo;
-                                    console.log('Форма автозаполнена');
-                                }
-                            }
-                        } catch (jsonError) {
-                            console.log('✅ Успешно, но не JSON ответ');
-                        }
-                    } else {
-                        try {
-                            const content = await response.text();
-                            console.log(`✅ Успешно! Получено ${content.length} байт`);
-                            
-                            if (content.length < 5000) {
-                                console.log('Первые 200 символов:', content.substring(0, 200));
-                            }
-                            
-                            try {
-                                const jsonData = JSON.parse(content);
-                                console.log('✅ Это валидный JSON!');
-                                console.log('Тип данных:', Array.isArray(jsonData) ? 'Массив' : 'Объект');
-                                if (Array.isArray(jsonData)) {
-                                    console.log('Количество элементов:', jsonData.length);
-                                }
-                            } catch (parseError) {
-                                console.log('⚠️ Это не валидный JSON');
-                            }
-                        } catch (textError) {
-                            console.log('✅ Успешно, но не удалось прочитать содержимое');
-                        }
-                    }
-                } else if (response.status === 404) {
-                    console.log('❌ Не найдено (404)');
-                } else if (response.status === 403) {
-                    console.log('⚠️ Доступ запрещен (403) - возможно лимит API');
-                } else {
-                    console.log(`⚠️ Ошибка: ${response.status}`);
-                }
-            } catch (error) {
-                console.log(`❌ Сетевая ошибка: ${error.message}`);
-            }
-            console.log('---');
-        }
-        
-        if (anySuccess) {
-            console.log('🎉 Некоторые URL работают! GitHub доступен.');
-        } else {
-            console.warn('⚠️ Все тесты не прошли. Проверьте:');
-            console.warn('1. Существует ли репозиторий');
-            console.warn('2. Есть ли файл tree-data.json');
-            console.warn('3. Нет ли проблем с CORS или сетью');
-        }
-        
-        return anySuccess;
-    }
-    
-    setTimeout(() => {
-        testGitHubConnection().then(success => {
-            if (success) {
-                console.log('✅ GitHub соединение проверено, форма готова к использованию');
-            } else {
-                console.warn('⚠️ GitHub недоступен, функция загрузки может не работать');
-            }
-        });
-    }, 1000);
-    
     loadFromGitHubBtn.addEventListener('click', function() {
         console.log('✅ Кнопка "Загрузить из GitHub" НАЖАТА!');
         
-        if (githubOwnerInput) {
-            githubOwnerInput.value = githubOwnerInput.value || 'mark98molchanov-a11y';
-        }
-        if (githubRepoInput) {
-            const repoValue = githubRepoInput.value || 'mark98molchanov-a11y.github.io';
-            githubRepoInput.value = repoValue.replace(/\/$/, '');
-        }
-        if (githubTokenInput) {
-            githubTokenInput.value = githubTokenInput.value || '';
-        }
+        if (githubOwnerInput) githubOwnerInput.value = 'mark98molchanov-a11y';
+        if (githubRepoInput) githubRepoInput.value = 'mark98molchanov-a11y.github.io';
+        if (githubTokenInput) githubTokenInput.value = '';
         
         if (githubModalBackdrop) {
             githubModalBackdrop.style.display = 'flex';
             console.log('Модальное окно открыто');
-            
-            if (githubOwnerInput) {
-                githubOwnerInput.focus();
-                githubOwnerInput.select();
-            }
         } else {
             console.error('Модальное окно не найдено!');
             alert('Ошибка: модальное окно не найдено');
@@ -382,108 +142,58 @@ function setupGitHubLoader() {
         githubCancelBtn.addEventListener('click', () => {
             if (githubModalBackdrop) {
                 githubModalBackdrop.style.display = 'none';
-                console.log('Модальное окно закрыто');
             }
         });
     }
-
+    
     if (githubModalBackdrop) {
         githubModalBackdrop.addEventListener('click', (e) => {
             if (e.target === githubModalBackdrop) {
                 githubModalBackdrop.style.display = 'none';
-                console.log('Модальное окно закрыто (клик по фону)');
             }
         });
     }
     
     if (githubLoadBtn) {
         githubLoadBtn.addEventListener('click', async () => {
-            console.log('🔄 Кнопка загрузки в модальном окне нажата');
+            console.log('Кнопка загрузки в модальном окне нажата');
             
             const owner = githubOwnerInput ? githubOwnerInput.value.trim() : '';
             const repo = githubRepoInput ? githubRepoInput.value.trim() : '';
             const token = githubTokenInput ? githubTokenInput.value.trim() : '';
             
-            const cleanRepo = repo.replace('.github.io', '').replace(/\/$/, '');
-            
-            console.log(`Параметры загрузки:`);
-            console.log(`- Владелец: ${owner}`);
-            console.log(`- Репозиторий: ${repo} (очищенный: ${cleanRepo})`);
-            console.log(`- Токен: ${token ? 'есть' : 'нет'}`);
-            
             if (!owner) {
-                alert('Введите имя владельца репозитория (например: mark98molchanov-a11y)');
-                if (githubOwnerInput) githubOwnerInput.focus();
+                alert('Введите имя владельца репозитория');
                 return;
             }
             
             if (!repo) {
-                alert('Введите название репозитория (например: mark98molchanov-a11y.github.io)');
-                if (githubRepoInput) githubRepoInput.focus();
+                alert('Введите название репозитория');
                 return;
             }
-            
-            const originalText = githubLoadBtn.textContent;
-            const originalDisabled = githubLoadBtn.disabled;
             
             githubLoadBtn.textContent = 'Загрузка...';
             githubLoadBtn.disabled = true;
             
             try {
-                console.log(`Начинаем загрузку из GitHub: ${owner}/${repo}`);
-                
-                const repoVariants = [
-                    repo,
-                    cleanRepo,
-                    `${cleanRepo}.github.io`,
-                    repo.includes('.github.io') ? repo : `${repo}.github.io`
-                ];
-                
-                let treeData = null;
-                let lastError = null;
-                
-                for (const repoVariant of repoVariants) {
-                    if (repoVariant) {
-                        console.log(`Пробуем вариант репозитория: ${repoVariant}`);
-                        try {
-                            treeData = await loadTreeFromGitHub(owner, repoVariant, token);
-                            if (treeData) {
-                                console.log(`✅ Успешно загружено с репозиторием: ${repoVariant}`);
-                                break;
-                            }
-                        } catch (error) {
-                            console.log(`❌ Ошибка для ${repoVariant}:`, error.message);
-                            lastError = error;
-                            continue;
-                        }
-                    }
-                }
+                console.log(`Загрузка из GitHub: ${owner}/${repo}`);
+                const treeData = await loadTreeFromGitHub(owner, repo, token);
                 
                 if (treeData) {
-                    console.log('Данные получены, загружаем в приложение...');
                     await loadTreeIntoApp(treeData);
-                    
                     if (githubModalBackdrop) {
                         githubModalBackdrop.style.display = 'none';
                     }
-                    
-                    alert(`✅ Дерево успешно загружено из GitHub!\n\nЗагружено ${treeData.length} элементов`);
-                    
-                    // Сохраняем успешные параметры для будущего использования
-                    localStorage.setItem('last_github_owner', owner);
-                    localStorage.setItem('last_github_repo', repo);
-                    
+                    alert('✅ Дерево успешно загружено из GitHub!');
                 } else {
-                    console.error('Не удалось загрузить данные со всех вариантов');
-                    alert(`⚠️ Не удалось найти данные дерева в репозитории.\n\nПроверьте:\n1. Существует ли репозиторий ${owner}/${repo}\n2. Есть ли файл tree-data.json в корне\n3. Репозиторий публичный\n\nПоследняя ошибка: ${lastError ? lastError.message : 'Неизвестно'}`);
+                    alert('⚠️ Не удалось найти данные дерева в репозитории');
                 }
             } catch (error) {
-                console.error('❌ Критическая ошибка загрузки из GitHub:', error);
-                alert(`❌ Ошибка загрузки:\n\n${error.message}\n\nПроверьте консоль для деталей.`);
+                console.error('Ошибка загрузки из GitHub:', error);
+                alert('❌ Ошибка загрузки: ' + error.message);
             } finally {
-                // Восстанавливаем кнопку
-                githubLoadBtn.textContent = originalText;
-                githubLoadBtn.disabled = originalDisabled;
+                githubLoadBtn.textContent = 'Загрузить';
+                githubLoadBtn.disabled = false;
             }
         });
     }
@@ -492,31 +202,12 @@ function setupGitHubLoader() {
     inputs.forEach(input => {
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && githubLoadBtn) {
-                console.log('Enter нажат в поле ввода, запускаем загрузку...');
                 githubLoadBtn.click();
             }
         });
     });
     
-    try {
-        const lastOwner = localStorage.getItem('last_github_owner');
-        const lastRepo = localStorage.getItem('last_github_repo');
-        
-        if (lastOwner && githubOwnerInput) {
-            githubOwnerInput.value = lastOwner;
-        }
-        if (lastRepo && githubRepoInput) {
-            githubRepoInput.value = lastRepo;
-        }
-        
-        if (lastOwner || lastRepo) {
-            console.log('Восстановлены предыдущие значения из localStorage');
-        }
-    } catch (e) {
-        console.log('Не удалось восстановить значения из localStorage:', e.message);
-    }
-    
-    console.log('✅ GitHub загрузчик полностью настроен');
+    console.log('GitHub загрузчик настроен');
 }
 async function testGitHubConnection() {
     try {
@@ -548,154 +239,218 @@ async function loadTreeFromGitHub(owner, repo, token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const directUrls = [
-        `https://${owner}.github.io/${repo.includes('.github.io') ? '' : repo + '/'}tree-data.json`,
-        `https://raw.githubusercontent.com/${owner}/${repo}/main/tree-data.json`,
-        `https://raw.githubusercontent.com/${owner}/${repo}/master/tree-data.json`,
-        `https://${owner}.github.io/tree-data.json`,
-        `https://${owner}.github.io/${repo}/tree-data.json`
-    ];
-    
-    console.log('Пробуем прямые URL:');
-    for (const url of directUrls) {
-        try {
-            console.log(`Пробуем: ${url}`);
-            const response = await fetch(url, { headers });
-            
-            if (response.ok) {
-                const fileContent = await response.text();
-                console.log(`✅ Файл найден по прямому URL: ${url}`);
-                
-                try {
-                    const treeData = JSON.parse(fileContent);
-                    if (Array.isArray(treeData) && treeData.length > 0) {
-                        console.log(`Успешно загружено ${treeData.length} элементов`);
-                        return treeData;
-                    }
-                } catch (parseError) {
-                    console.log('Ошибка парсинга:', parseError.message);
-                }
-            } else {
-                console.log(`❌ Не найден (${response.status}): ${url}`);
-            }
-        } catch (error) {
-            console.log(`Ошибка при загрузке ${url}:`, error.message);
-        }
-    }
-    
-    console.log('Прямые URL не сработали, пробуем через GitHub API...');
-    
     const sources = [
         { path: 'tree-data.json', description: 'Основной файл данных' },
         { path: 'tree_data.json', description: 'Альтернативное имя' },
-        { path: 'tree.json', description: 'Корневой JSON' },
-        { path: 'data.json', description: 'Общий файл данных' },
         { path: 'data/tree-data.json', description: 'В папке data' },
-        { path: 'app/tree-data.json', description: 'В папке app' },
-        { path: 'js/tree-data.json', description: 'В папке js' }
+        { path: 'data/tree.json', description: 'JSON в папке data' },
+        { path: 'exported-tree.json', description: 'Экспортированный файл' },
+        { path: 'tree.json', description: 'Корневой JSON' },
+        { path: 'tree-data.js', description: 'JS файл с данными' },
+        { path: 'data.json', description: 'Общий файл данных' }
     ];
     
     for (const source of sources) {
         try {
-            console.log(`Пробуем через API: ${source.path}`);
+            console.log(`Пробуем загрузить: ${source.path}`);
             
             const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${source.path}`;
-            console.log(`API запрос: ${apiUrl}`);
+            console.log(`Запрос к: ${apiUrl}`);
             
             const response = await fetch(apiUrl, { headers });
             
-            if (response.ok) {
-                const fileData = await response.json();
-                console.log(`✅ Файл найден через API: ${source.path}`);
-                
-                if (!fileData.download_url) {
-                    console.log('Нет download_url');
-                    continue;
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log(`Файл ${source.path} не найден (404)`);
+                } else {
+                    console.log(`Ошибка ${response.status} для ${source.path}`);
                 }
-                
-                console.log(`Скачиваем из: ${fileData.download_url}`);
-                const fileResponse = await fetch(fileData.download_url, { headers });
-                
-                if (!fileResponse.ok) {
-                    console.log('Ошибка скачивания');
-                    continue;
-                }
-                
-                const fileContent = await fileResponse.text();
-                console.log(`Получено ${fileContent.length} байт`);
-                
-                try {
-                    const treeData = JSON.parse(fileContent);
-                    
-                    if (Array.isArray(treeData) && treeData.length > 0) {
-                        console.log(`✅ Успешно загружены данные, элементов: ${treeData.length}`);
-                        return treeData;
-                    } else {
-                        console.log('Данные не прошли валидацию (не массив или пустой)');
-                    }
-                } catch (parseError) {
-                    console.log('Ошибка парсинга JSON:', parseError.message);
-                }
-            } else {
-                console.log(`Файл не найден (${response.status}): ${source.path}`);
+                continue;
             }
+            
+            const fileData = await response.json();
+            
+            if (!fileData.download_url) {
+                console.log(`Нет download_url для ${source.path}`);
+                continue;
+            }
+            
+            console.log(`Найден файл ${source.path}, загружаем...`);
+            const fileResponse = await fetch(fileData.download_url, { headers });
+            
+            if (!fileResponse.ok) {
+                console.log(`Не удалось скачать ${source.path}`);
+                continue;
+            }
+            
+            const fileContent = await fileResponse.text();
+            console.log(`Получено ${fileContent.length} байт из ${source.path}`);
+            
+            try {
+                const treeData = JSON.parse(fileContent);
+            
+                if (Array.isArray(treeData) && treeData.length > 0) {
+                    // Проверяем, есть ли у первого элемента id (базовая валидация)
+                    if (treeData[0].id !== undefined) {
+                        console.log(`✅ Успешно загружены данные из ${source.path}, элементов: ${treeData.length}`);
+                        return treeData;
+                    } else if (treeData[0].name !== undefined) {
+                        console.log(`⚠️ Данные из ${source.path} не в ожидаемом формате, но это массив объектов`);
+                        return treeData;
+                    }
+                }
+                
+                console.log(`Данные из ${source.path} не прошли валидацию`);
+            } catch (parseError) {
+                // Если это JS файл, пробуем извлечь данные
+                if (source.path.endsWith('.js')) {
+                    console.log('Пробуем извлечь данные из JS файла...');
+                    const dataMatch = fileContent.match(/window\.treeData\s*=\s*(\[.*?\]);/s) ||
+                                     fileContent.match(/export\s+default\s+(\[.*?\]);/s) ||
+                                     fileContent.match(/const\s+treeData\s*=\s*(\[.*?\]);/s);
+                    
+                    if (dataMatch) {
+                        try {
+                            const treeData = JSON.parse(dataMatch[1]);
+                            console.log(`✅ Данные извлечены из JS файла ${source.path}`);
+                            return treeData;
+                        } catch (e) {
+                            console.log(`Не удалось распарсить данные из JS: ${e.message}`);
+                        }
+                    }
+                }
+                console.log(`Ошибка парсинга JSON из ${source.path}:`, parseError.message);
+                continue;
+            }
+            
         } catch (error) {
             console.log(`Ошибка при обработке ${source.path}:`, error.message);
+            continue;
         }
     }
     
+    console.log('Прямые файлы не найдены, сканируем репозиторий...');
+    
     try {
-        console.log('Пробуем получить список всех файлов в репозитории...');
         const repoUrl = `https://api.github.com/repos/${owner}/${repo}/contents/`;
         const response = await fetch(repoUrl, { headers });
         
         if (response.ok) {
             const files = await response.json();
-            console.log(`Найдено ${files.length} файлов/папок в репозитории:`);
+            console.log(`Найдено ${files.length} файлов в репозитории`);
             
-            files.forEach(file => {
-                console.log(`  - ${file.name} (${file.type})`);
-            });
-            
-            // Ищем JSON файлы
             const jsonFiles = files.filter(file => 
-                file.type === 'file' && 
-                file.name.toLowerCase().endsWith('.json')
+                file.type === 'file' &&
+                file.name.toLowerCase().endsWith('.json') &&
+                !file.name.toLowerCase().includes('package') &&
+                !file.name.toLowerCase().includes('config')
             );
             
             console.log(`Найдено JSON файлов: ${jsonFiles.length}`);
             
             for (const file of jsonFiles) {
                 try {
-                    console.log(`Проверяем JSON файл: ${file.name}`);
+                    console.log(`Проверяем файл: ${file.name} (${file.size} байт)`);
                     const fileResponse = await fetch(file.download_url, { headers });
                     const content = await fileResponse.text();
                     
                     try {
                         const data = JSON.parse(content);
+                        
                         if (Array.isArray(data) && data.length > 0) {
-                            console.log(`✅ Найден подходящий файл: ${file.name} с ${data.length} элементами`);
-                            return data;
+                            const firstItem = data[0];
+                            if (firstItem.id !== undefined || firstItem.name !== undefined) {
+                                console.log(`✅ Найден подходящий файл: ${file.name}`);
+                                return data;
+                            }
                         }
                     } catch (e) {
-                        console.log(`Файл ${file.name} не валидный JSON`);
+                        continue;
                     }
                 } catch (e) {
                     console.log(`Ошибка загрузки файла ${file.name}:`, e.message);
+                    continue;
                 }
             }
+        } else {
+            console.log(`Ошибка при получении списка файлов: ${response.status}`);
         }
     } catch (scanError) {
         console.log('Ошибка при сканировании репозитория:', scanError.message);
     }
     
-    console.error('ВСЕ ПОПЫТКИ НЕ УДАЛИСЬ!');
-    console.log('Проверьте:');
-    console.log('1. Существует ли репозиторий: https://github.com/' + owner + '/' + repo);
-    console.log('2. Есть ли файл tree-data.json в корне репозитория');
-    console.log('3. Репозиторий публичный (для приватных нужен токен)');
+    throw new Error('Не удалось найти данные дерева в репозитории. Убедитесь, что файл tree-data.json существует в корне репозитория.');
+}
+
+async function loadTreeIntoApp(treeData) {
+    console.log('Загрузка данных в приложение...', treeData);
     
-    throw new Error(`Не удалось найти данные дерева в репозитории ${owner}/${repo}. Убедитесь, что файл tree-data.json существует в корне репозитория.`);
+    if (!treeData || !Array.isArray(treeData)) {
+        throw new Error('Некорректные данные дерева: ожидается массив');
+    }
+    
+    try {
+        localStorage.setItem('github_loaded_tree', JSON.stringify(treeData));
+        localStorage.setItem('tree_source', 'github');
+        localStorage.setItem('last_github_load', new Date().toISOString());
+        console.log('Данные сохранены в localStorage');
+    } catch (e) {
+        console.warn('Не удалось сохранить в localStorage:', e.message);
+    }
+    
+    if (window.treeManager) {
+        console.log('treeManager доступен, пробуем методы:');
+        
+        const methods = ['loadTree', 'importFromJSON', 'loadData', 'setTreeData'];
+        
+        for (const method of methods) {
+            if (typeof window.treeManager[method] === 'function') {
+                console.log(`Пробуем метод: ${method}`);
+                try {
+                    window.treeManager[method](treeData);
+                    console.log(`✅ Метод ${method} успешно выполнен`);
+                    return true;
+                } catch (methodError) {
+                    console.log(`❌ Метод ${method} вызвал ошибку:`, methodError.message);
+                }
+            }
+        }
+        
+        console.log('Использую прямое присвоение данных');
+        window.treeManager.treeData = treeData;
+        
+        if (typeof window.treeManager.renderTree === 'function') {
+            console.log('Вызываю renderTree()');
+            window.treeManager.renderTree();
+        } else if (typeof window.treeManager.updateTreeView === 'function') {
+            console.log('Вызываю updateTreeView()');
+            window.treeManager.updateTreeView();
+        } else if (typeof window.treeManager.render === 'function') {
+            console.log('Вызываю render()');
+            window.treeManager.render();
+        }
+        
+        setTimeout(() => {
+            const treeContainer = document.getElementById('tree');
+            if (treeContainer && treeContainer.children.length === 0) {
+                console.log('Принудительно обновляю дерево');
+                treeContainer.innerHTML = '<div class="tree-node">Дерево загружено. Нажмите F5 для обновления.</div>';
+            }
+        }, 500);
+        
+        return true;
+    } else {
+        console.error('treeManager не инициализирован');
+        
+        const treeContainer = document.getElementById('tree');
+        if (treeContainer) {
+            treeContainer.innerHTML = '<div class="tree-loading">Дерево загружено, но требуется перезагрузка страницы для полного отображения</div>';
+            
+            localStorage.setItem('pending_tree_data', JSON.stringify(treeData));
+        }
+        
+        throw new Error('Менеджер дерева не готов. Попробуйте обновить страницу.');
+    }
 }
 
 function exportTreeToGitHubFormat() {
