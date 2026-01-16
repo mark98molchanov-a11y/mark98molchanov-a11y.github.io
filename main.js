@@ -12,24 +12,119 @@ function waitForScripts() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('DOM загружен, проверяем скрипты...');
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM загружен, начинаем инициализацию...');
+    
+    console.log('Проверка загруженных классов:');
+    console.log('- TreeManager:', typeof TreeManager);
+    console.log('- NodeEffects:', typeof NodeEffects);
+    console.log('- window.TreeManager:', typeof window.TreeManager);
+    console.log('- window.NodeEffects:', typeof window.NodeEffects);
+    
+    if (typeof TreeManager === 'undefined' || typeof NodeEffects === 'undefined') {
+        console.warn('Классы не загружены, пробуем подождать...');
+        
+        setTimeout(() => {
+            console.log('Повторная проверка после ожидания:');
+            console.log('- TreeManager:', typeof TreeManager);
+            console.log('- NodeEffects:', typeof NodeEffects);
+            
+            if (typeof TreeManager === 'undefined' || typeof NodeEffects === 'undefined') {
+                console.error('Классы так и не загрузились!');
+                console.log('Создаем минимальные реализации...');
+                createFallbackClasses();
+            }
+            
+            initializeApp();
+        }, 2000);
+    } else {
+        initializeApp();
+    }
+});
+function createFallbackClasses() {
+    if (typeof TreeManager === 'undefined') {
+        console.log('Создаю fallback TreeManager');
+        window.TreeManager = class TreeManager {
+            constructor() {
+                this.treeData = [];
+                this.currentNodeId = 1;
+                console.log('Fallback TreeManager создан');
+            }
+            
+            init() {
+                console.log('Fallback TreeManager.init() вызван');
+                this.treeData = [
+                    {
+                        id: 1,
+                        name: "Департамент имущественных отношений",
+                        description: "Ямало-Ненецкий автономный округ"
+                    }
+                ];
+                this.renderTree();
+            }
+            
+            loadTree(data) {
+                console.log('Fallback TreeManager.loadTree() вызван');
+                this.treeData = data || [];
+                this.renderTree();
+            }
+            
+            importFromJSON(data) {
+                return this.loadTree(data);
+            }
+            
+            exportToJSON() {
+                return this.treeData;
+            }
+            
+            renderTree() {
+                const treeContainer = document.getElementById('tree');
+                if (treeContainer) {
+                    treeContainer.innerHTML = '<div class="tree-node"><strong>Дерево загружено (fallback режим)</strong></div>';
+                }
+            }
+        };
+    }
+    
+    if (typeof NodeEffects === 'undefined') {
+        console.log('Создаю fallback NodeEffects');
+        window.NodeEffects = class NodeEffects {
+            constructor() {
+                console.log('Fallback NodeEffects создан');
+            }
+            addEffect() {}
+            removeEffect() {}
+        };
+    }
+}
+function initializeApp() {
+    console.log('Начинаем инициализацию приложения...');
     
     try {
-        console.log('Ожидаем загрузку TreeManager и NodeEffects...');
-        await waitForScripts();
-        console.log('Все скрипты загружены!');
+        if (typeof NodeEffects !== 'undefined') {
+            window.nodeEffects = new NodeEffects();
+            console.log('✅ NodeEffects создан');
+        } else {
+            window.nodeEffects = new window.NodeEffects();
+            console.log('✅ Fallback NodeEffects создан');
+        }
         
-        window.nodeEffects = new NodeEffects();
-        console.log('NodeEffects создан');
+        if (typeof TreeManager !== 'undefined') {
+            window.treeManager = new TreeManager();
+            console.log('✅ TreeManager создан');
+        } else {
+            window.treeManager = new window.TreeManager();
+            console.log('✅ Fallback TreeManager создан');
+        }
         
-        window.treeManager = new TreeManager();
-        console.log('TreeManager создан');
+        console.log('Проверка методов treeManager:');
+        const methodNames = [
+            'init', 'initialize', 'load', 'loadTree', 
+            'importFromJSON', 'exportToJSON', 'renderTree'
+        ];
         
-        console.log('Доступные методы TreeManager:');
-        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(window.treeManager));
-        methods.forEach(method => {
-            console.log(`  - ${method}`);
+        methodNames.forEach(method => {
+            console.log(`  - ${method}:`, typeof window.treeManager[method]);
         });
         
         if (typeof window.treeManager.init === 'function') {
@@ -42,18 +137,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('Вызываю treeManager.load()');
             window.treeManager.load();
         } else {
-            console.log('Прямая инициализация (метод init не найден)');
-            // Если есть данные в localStorage, загружаем их
-            const savedTree = localStorage.getItem('treeData');
-            if (savedTree) {
-                try {
+            console.log('Метод init не найден, пробуем загрузить из localStorage');
+            try {
+                const savedTree = localStorage.getItem('treeData');
+                if (savedTree) {
                     const treeData = JSON.parse(savedTree);
                     if (typeof window.treeManager.loadTree === 'function') {
                         window.treeManager.loadTree(treeData);
                     }
-                } catch (e) {
-                    console.warn('Не удалось загрузить сохраненное дерево:', e);
                 }
+            } catch (e) {
+                console.warn('Не удалось загрузить из localStorage:', e);
             }
         }
         
@@ -61,16 +155,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupGitHubLoader();
         
         // Тестируем GitHub API
-        setTimeout(testGitHubAPI, 500);
+        setTimeout(testGitHubAPI, 1000);
         
-        console.log('✅ Приложение успешно инициализировано');
+        console.log('🎉 Приложение успешно инициализировано!');
         
     } catch (error) {
-        console.error('❌ Критическая ошибка при инициализации:', error);
+        console.error('❌ Ошибка при инициализации:', error);
         alert('Ошибка загрузки приложения: ' + error.message);
+        
+        // Показываем хотя бы интерфейс при ошибке
+        setupGitHubLoader();
     }
-});
-
+}
 function setupIframeCommunication() {
     if (window.IFRAME_MODE) {
         if (window.parent !== window) {
