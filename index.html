@@ -36,6 +36,11 @@
         <input type="text" id="searchInput" placeholder="Поиск..." style="padding: 8px; border-radius: 8px; border: 1px solid var(--primary-color);">
         <span id="selectedCount" style="margin-left: 10px; font-size: 0.9em; color: var(--accent-color); display: none;">Выделено: 0</span>
         <div class="autocomplete-suggestions" id="searchSuggestions"></div>
+        <div class="github-buttons" style="display: flex; gap: 5px; margin: 5px 0; padding: 5px; background: var(--controls-bg, #f0f0f0); border-radius: 8px;">
+            <button type="button" id="loadFromGitHub" style="padding: 8px 12px; background: #2ea44f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">↻ GitHub</button>
+            <button type="button" id="saveToGitHub" style="padding: 8px 12px; background: #0366d6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">💾 GitHub</button>
+            <div id="githubStatus" style="font-size: 11px; color: #666; align-self: center; margin-left: 5px;"></div>
+        </div>
         
         <button type="button" id="jsonExportBtn">JSON Экспорт</button>
         <button type="button" id="jsonImportBtn">JSON Импорт</button>
@@ -95,6 +100,7 @@
     <script src="node-effects.js"></script>
     <script src="indexed-db-manager.js"></script>
     <script src="tree-manager-core.js"></script>
+    <script src="github-loader.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
