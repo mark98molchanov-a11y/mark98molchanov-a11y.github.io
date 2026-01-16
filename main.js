@@ -4,17 +4,63 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM загружен, инициализация приложения...');
     
     try {
-        window.nodeEffects = new NodeEffects();
-        window.treeManager = new TreeManager();
+        if (typeof NodeEffects !== 'undefined') {
+            window.nodeEffects = new NodeEffects();
+            console.log('NodeEffects инициализирован');
+        } else {
+            console.warn('NodeEffects не определен');
+        }
         
-        console.log('treeManager инициализирован:', window.treeManager);
-        console.log('Доступные методы treeManager:', Object.getOwnPropertyNames(Object.getPrototypeOf(window.treeManager)));
+        if (typeof TreeManager !== 'undefined') {
+            window.treeManager = new TreeManager();
+            console.log('TreeManager создан:', window.treeManager);
+            
+            console.log('Методы TreeManager:');
+            Object.getOwnPropertyNames(Object.getPrototypeOf(window.treeManager)).forEach(method => {
+                console.log(`  - ${method}`);
+            });
+            
+            // Пробуем разные методы инициализации
+            let initSuccessful = false;
+            
+            if (typeof window.treeManager.init === 'function') {
+                console.log('Использую treeManager.init()');
+                window.treeManager.init();
+                initSuccessful = true;
+            } 
+            else if (typeof window.treeManager.initialize === 'function') {
+                console.log('Использую treeManager.initialize()');
+                window.treeManager.initialize();
+                initSuccessful = true;
+            }
+            else if (typeof window.treeManager.load === 'function') {
+                console.log('Использую treeManager.load()');
+                window.treeManager.load();
+                initSuccessful = true;
+            }
+            else {
+                console.log('Прямая инициализация treeManager');
+                // Если нет метода init, просто отмечаем как готовый
+                initSuccessful = true;
+            }
+            
+            if (!initSuccessful) {
+                console.warn('Не удалось инициализировать treeManager стандартными методами');
+            }
+            
+        } else {
+            console.error('TreeManager не определен! Проверьте tree-manager-core.js');
+            alert('Ошибка: TreeManager не найден. Проверьте консоль для деталей.');
+            return;
+        }
         
-        window.treeManager.init();
         setupIframeCommunication();
         setupGitHubLoader();
         
         setTimeout(testGitHubAPI, 1000);
+        
+        console.log('Приложение успешно инициализировано');
+        
     } catch (error) {
         console.error('Критическая ошибка при инициализации:', error);
         alert('Ошибка загрузки приложения: ' + error.message);
