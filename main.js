@@ -125,6 +125,7 @@ function setupGitHubLoader() {
     
     console.log('Кнопка GitHub найдена, добавляем обработчик...');
     
+    // 1. Обработчик для кнопки "Загрузить из GitHub"
     loadFromGitHubBtn.addEventListener('click', function() {
         console.log('✅ Кнопка "Загрузить из GitHub" НАЖАТА!');
         
