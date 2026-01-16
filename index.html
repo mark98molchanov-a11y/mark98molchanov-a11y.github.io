@@ -10,6 +10,36 @@
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    
+    <style>
+        #githubLoadBtn {
+            background: linear-gradient(145deg, #24292e, #0366d6) !important;
+            color: white !important;
+            border: none !important;
+            padding: 8px 12px !important;
+            border-radius: 8px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            margin-left: 10px !important;
+            font-weight: 500 !important;
+        }
+        
+        #githubLoadBtn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 8px rgba(3, 102, 214, 0.3) !important;
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
     <script>
         const isChrome = !!window.chrome && (!!window.chrome.webstore || !!window.chrome.runtime);
         if (isChrome && parseInt(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] || 0) < 50) {
@@ -39,6 +69,8 @@
         
         <button type="button" id="jsonExportBtn">JSON Экспорт</button>
         <button type="button" id="jsonImportBtn">JSON Импорт</button>
+        <!-- Кнопка загрузки из GitHub будет добавлена здесь скриптом -->
+        
         <button type="button" id="saveBtn">Сохранить</button>
         <button type="button" id="collapseAllBtn">Свернуть все</button>
         <button type="button" id="collapseParentBtn" class="collapse-parent-btn">Свернуть родителя</button>
