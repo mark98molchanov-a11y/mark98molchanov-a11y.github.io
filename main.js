@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.githubLoader = new GitHubLoader({
         owner: 'mark98molchanov-a11y',
         repo: 'mark98molchanov-a11y.github.io',
-        branch: 'main'
+        branch: 'main',
         token: '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'
     });
     
