@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         owner: 'mark98molchanov-a11y',
         repo: 'mark98molchanov-a11y.github.io',
         branch: 'main'
-         token: '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'
+        token: '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'
     });
     
     window.nodeEffects = new NodeEffects();
