@@ -1,8 +1,7 @@
-// main.js
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🌳 Инициализация дерева...');
     
-    // Инициализация GitHub Loader
     window.githubLoader = new GitHubLoader({
         owner: 'mark98molchanov-a11y',
         repo: 'mark98molchanov-a11y.github.io',
