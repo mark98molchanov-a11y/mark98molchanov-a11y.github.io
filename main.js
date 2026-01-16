@@ -4,13 +4,12 @@ class GitHubLoader {
         this.owner = options.owner || 'mark98molchanov-a11y';
         this.repo = options.repo || 'mark98molchanov-a11y.github.io';
         this.branch = options.branch || 'main';
-        this.token = options.token || ''; // Токен можно не указывать для публичного репо
+        this.token = options.token || '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'; 
         this.dataFile = options.dataFile || 'tree-data.json';
     }
 
     async loadTreeData() {
         try {
-            // Формируем URL для GitHub API
             const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.dataFile}?ref=${this.branch}`;
             
             const headers = {};
@@ -26,20 +25,17 @@ class GitHubLoader {
 
             const data = await response.json();
             
-            // Данные в GitHub хранятся в base64
             const content = atob(data.content);
             return JSON.parse(content);
             
         } catch (error) {
             console.error('Error loading data from GitHub:', error);
-            // Возвращаем null вместо выброса ошибки
             return null;
         }
     }
 
     async saveTreeData(treeData) {
         try {
-            // Сначала получим текущий файл, чтобы узнать sha
             const getUrl = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.dataFile}?ref=${this.branch}`;
             
             let currentSha = null;
@@ -52,11 +48,9 @@ class GitHubLoader {
                     currentSha = data.sha;
                 }
             } catch (e) {
-                // Файл может не существовать
                 console.log('File may not exist, will create new');
             }
 
-            // Кодируем данные в base64
             const content = btoa(JSON.stringify(treeData, null, 2));
             
             const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.dataFile}`;
@@ -104,7 +98,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.nodeEffects = new NodeEffects();
     window.treeManager = new TreeManager();
     
-    // Загружаем данные из GitHub вместо локального файла
     try {
         console.log('Loading data from GitHub...');
         const treeData = await window.githubLoader.loadTreeData();
