@@ -5400,7 +5400,7 @@ async removeFile(node, fileId) {
     }
   }
 
-  importData(data) {
+importData(data) {
   try {
     if (data.version && data.version !== '1.0') {
       const userConfirmed = confirm(
@@ -5411,30 +5411,43 @@ async removeFile(node, fileId) {
         throw new Error('Импорт отменен пользователем');
       }
     }
+    
     this.imagesData = data.images || {};
     this.nodeCounter = data.counter || 1;
     this.treeData = this.restoreTree(data.tree);
-       if (this.treeData) {
-            const walkTree = (node) => {
-                if (node.content.hideIcon === undefined) {
-                    node.content.hideIcon = false;
-                }
-                node.children.forEach(walkTree);
-            };
-            walkTree(this.treeData);
-        }
+    
+    if (this.treeData) {
+        const walkTree = (node) => {
+            if (node.content.hideIcon === undefined) {
+                node.content.hideIcon = false;
+            }
+            node.children.forEach(walkTree);
+        };
+        walkTree(this.treeData);
+    }
+    
     this.filesData = data.filesData || {}; 
     this.darkMode = data.theme === 'dark';
     document.documentElement.classList.toggle('dark', this.darkMode);
+    
+    if (data.version >= '2.7') {
+        this.clusters = new Map(data.clusters || []);
+        this.availableClusters = new Set(data.availableClusters || []);
+        this.activeCluster = data.settings?.activeCluster || null;
+    }
+    
     this.updateTree();
-this.saveToHistory(true, true);
+    this.saveToHistory(true, true);
     this.treeData.isExpanded = true;
     this.saveData();
     this.setupEventListeners();
-this.setupDragAndDrop();
+    this.setupDragAndDrop();
+    
+    return true;
+    
   } catch(error) {
     console.error('Ошибка импорта:', error);
-    alert('Ошибка загрузки: ' + error.message);
+    this.showNotification(`Ошибка загрузки: ${error.message}`);
     throw new Error('Некорректный формат файла');
   }
 }
