@@ -1,182 +1,113 @@
-
+// github-loader.js
 class GitHubLoader {
     constructor(options = {}) {
         this.owner = options.owner || 'mark98molchanov-a11y';
         this.repo = options.repo || 'mark98molchanov-a11y.github.io';
         this.branch = options.branch || 'main';
-        this.token = options.token || ''; 
-        this.dataFile = options.dataFile || 'tree-data.json';
-        this.apiBase = 'https://api.github.com';
+        this.token = options.token || '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';
+        this.dataFile = 'tree-data.json';
     }
 
     async loadTreeData() {
+        console.log('🚀 Загрузка данных из GitHub...');
+        
+        const rawUrl = `https://raw.githubusercontent.com/${this.owner}/${this.repo}/${this.branch}/${this.dataFile}`;
+        
+        console.log('📡 Запрашиваю URL:', rawUrl);
+        
         try {
-            console.log(`Loading tree data from GitHub: ${this.owner}/${this.repo}/${this.dataFile}`);
-            
-            const url = `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.dataFile}?ref=${this.branch}`;
-            
-            const headers = {
-                'Accept': 'application/vnd.github.v3+json'
-            };
-            
-            if (this.token) {
-                headers['Authorization'] = `Bearer ${this.token}`;
-            }
-            
-            console.log('Fetching from:', url);
-            const response = await fetch(url, { headers });
+            const response = await fetch(rawUrl);
+            console.log('📊 Статус ответа:', response.status, response.statusText);
             
             if (response.status === 404) {
-                console.log('File not found in GitHub, returning empty array');
-                return [];
+                console.warn('⚠️ Файл не найден в GitHub. Нужно создать tree-data.json');
+                return this.getDefaultData();
             }
             
             if (!response.ok) {
-                console.error('GitHub API error:', response.status, response.statusText);
-                return null;
-            }
-
-            const data = await response.json();
-            
-            if (!data.content) {
-                console.error('No content in GitHub response');
-                return null;
+                throw new Error(`Ошибка HTTP ${response.status}`);
             }
             
-            try {
-                // GitHub API возвращает контент в base64
-                const content = atob(data.content.replace(/\n/g, ''));
-                const treeData = JSON.parse(content);
-                
-                console.log(`Successfully loaded ${treeData.length} nodes from GitHub`);
-                return treeData;
-                
-            } catch (parseError) {
-                console.error('Error parsing GitHub content:', parseError);
-                return null;
-            }
+            const text = await response.text();
+            console.log('✅ Данные получены, длина:', text.length, 'символов');
+            
+            const data = JSON.parse(text);
+            console.log(`✅ Успешно! Загружено ${data.length} элементов`);
+            
+            return data;
             
         } catch (error) {
-            console.error('Error loading data from GitHub:', error);
-            
-            try {
-                console.log('Trying alternative loading method...');
-                return await this.loadTreeDataAlternative();
-            } catch (altError) {
-                console.error('Alternative method also failed:', altError);
-                return null;
-            }
+            console.error('❌ Ошибка загрузки из GitHub:', error.message);
+            console.log('🔄 Использую локальные данные...');
+            return this.getDefaultData();
         }
     }
 
-    async loadTreeDataAlternative() {
-        const rawUrl = `https://raw.githubusercontent.com/${this.owner}/${this.repo}/${this.branch}/${this.dataFile}`;
-        
-        const response = await fetch(rawUrl);
-        
-        if (!response.ok) {
-            throw new Error(`Alternative loading failed: ${response.status}`);
-        }
-        
-        const content = await response.text();
-        return JSON.parse(content);
+    getDefaultData() {
+        return [
+            {
+                "id": "root",
+                "name": "Департамент имущественных отношений",
+                "title": "Ямало-Ненецкого автономного округа",
+                "children": [
+                    {
+                        "id": "head",
+                        "name": "Голова Ирина Витальевна",
+                        "title": "Руководитель департамента",
+                        "children": []
+                    }
+                ]
+            }
+        ];
     }
 
     async saveTreeData(treeData) {
-        try {
-            console.log(`Saving tree data to GitHub: ${this.owner}/${this.repo}/${this.dataFile}`);
-            
-            if (!Array.isArray(treeData)) {
-                console.error('Tree data must be an array');
-                return false;
-            }
-            
-            const getUrl = `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.dataFile}?ref=${this.branch}`;
-            
-            const headers = {
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            };
-            
-            if (this.token) {
-                headers['Authorization'] = `Bearer ${this.token}`;
-            } else {
-                console.warn('No GitHub token provided. This will only work for public repos with write access.');
-            }
-            
-            let currentSha = null;
+        console.log('💾 Сохранение в GitHub...');
+        
+        if (!this.token) {
+            console.warn('⚠️ Токен GitHub не указан. Сохранение невозможно.');
+            console.log('📝 Сохраняю локально в localStorage...');
             
             try {
-                const getResponse = await fetch(getUrl, { headers });
-                if (getResponse.ok) {
-                    const data = await getResponse.json();
-                    currentSha = data.sha;
-                    console.log('Found existing file, SHA:', currentSha);
-                }
-            } catch (e) {
-                console.log('File does not exist or cannot be accessed, will create new');
-            }
-            
-            const content = btoa(JSON.stringify(treeData, null, 2));
-            const putUrl = `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.dataFile}`;
-            
-            const body = {
-                message: `Update tree data via web interface - ${new Date().toLocaleString()}`,
-                content: content,
-                branch: this.branch
-            };
-            
-            if (currentSha) {
-                body.sha = currentSha;
-            }
-            
-            console.log('Saving to GitHub...');
-            const response = await fetch(putUrl, {
-                method: 'PUT',
-                headers: headers,
-                body: JSON.stringify(body)
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('GitHub save error:', response.status, errorData);
-                
-                if (response.status === 409 || response.status === 422) {
-                    console.log('Trying to create new file...');
-                    return await this.createNewFile(treeData);
-                }
-                
+                localStorage.setItem('treeData_backup', JSON.stringify(treeData));
+                console.log('✅ Данные сохранены локально (резервная копия)');
+                return true;
+            } catch (error) {
+                console.error('❌ Ошибка локального сохранения:', error);
                 return false;
             }
-            
-            console.log('Successfully saved to GitHub');
-            return true;
-            
-        } catch (error) {
-            console.error('Error saving data to GitHub:', error);
-            return false;
         }
-    }
-
-    async createNewFile(treeData) {
+        
         try {
-            const content = btoa(JSON.stringify(treeData, null, 2));
-            const url = `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.dataFile}`;
+            const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.dataFile}`;
             
             const headers = {
+                'Authorization': `Bearer ${this.token}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'Content-Type': 'application/json'
             };
             
-            if (this.token) {
-                headers['Authorization'] = `Bearer ${this.token}`;
+            let sha = null;
+            try {
+                const getResponse = await fetch(`${url}?ref=${this.branch}`, { headers });
+                if (getResponse.ok) {
+                    const data = await getResponse.json();
+                    sha = data.sha;
+                }
+            } catch (e) {
+                console.log('Файл не существует, создаем новый');
             }
             
+            const content = btoa(JSON.stringify(treeData, null, 2));
             const body = {
-                message: `Create new tree data file - ${new Date().toLocaleString()}`,
+                message: `Обновление дерева от ${new Date().toLocaleString('ru-RU')}`,
                 content: content,
                 branch: this.branch
             };
+            
+            if (sha) {
+                body.sha = sha;
+            }
             
             const response = await fetch(url, {
                 method: 'PUT',
@@ -184,22 +115,20 @@ class GitHubLoader {
                 body: JSON.stringify(body)
             });
             
-            return response.ok;
+            if (!response.ok) {
+                throw new Error(`Ошибка GitHub API: ${response.status}`);
+            }
+            
+            console.log('✅ Успешно сохранено в GitHub!');
+            return true;
             
         } catch (error) {
-            console.error('Error creating new file:', error);
+            console.error('❌ Ошибка сохранения в GitHub:', error);
             return false;
         }
     }
-
-    getRawFileUrl() {
-        return `https://raw.githubusercontent.com/${this.owner}/${this.repo}/${this.branch}/${this.dataFile}`;
-    }
-
-    getGitHubFileUrl() {
-        return `https://github.com/${this.owner}/${this.repo}/blob/${this.branch}/${this.dataFile}`;
-    }
 }
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = GitHubLoader;
+
+if (typeof window !== 'undefined') {
+    window.GitHubLoader = GitHubLoader;
 }
