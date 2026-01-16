@@ -1,81 +1,134 @@
-
-document.addEventListener('DOMContentLoaded', async () => {
+// main.js - обновленная версия с ожиданием загрузки TreeManager
+async function initializeApp() {
     console.log('🌳 Инициализация дерева...');
+
+    let maxAttempts = 10;
+    let attempt = 0;
     
+    while (!window.TreeManager && attempt < maxAttempts) {
+        console.log(`Ожидаю TreeManager... (попытка ${attempt + 1}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        attempt++;
+    }
+    
+    if (!window.TreeManager) {
+        console.error('❌ TreeManager не загружен даже после ожидания!');
+        console.log('Проверьте порядок скриптов в index.html');
+        console.log('TreeManager должен загружаться ПЕРЕД main.js');
+        return;
+    }
+    
+    console.log('✅ TreeManager загружен');
     window.githubLoader = new GitHubLoader({
         owner: 'mark98molchanov-a11y',
         repo: 'mark98molchanov-a11y.github.io',
         branch: 'main',
-         token: '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'
+        token: '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'
     });
     
-    if (!window.TreeManager) {
-        console.error('❌ TreeManager не загружен!');
-        return;
-    }
-    
     window.treeManager = new TreeManager();
-    window.nodeEffects = new NodeEffects();
-    
+    if (window.NodeEffects) {
+        window.nodeEffects = new NodeEffects();
+    }
     try {
         console.log('🔍 Загрузка данных...');
         const treeData = await window.githubLoader.loadTreeData();
         
         if (treeData && treeData.length > 0) {
             console.log(`✅ Загружено ${treeData.length} элементов`);
-            
-            console.log('Доступные методы:', Object.keys(window.treeManager).filter(key => typeof window.treeManager[key] === 'function'));
 
-            if (typeof window.treeManager.init === 'function') {
-                window.treeManager.init(treeData);
-            } else if (typeof window.treeManager.initialize === 'function') {
-                window.treeManager.initialize(treeData);
-            } else if (typeof window.treeManager.loadTree === 'function') {
-                window.treeManager.loadTree(treeData);
-            } else if (typeof window.treeManager.setData === 'function') {
-                window.treeManager.setData(treeData);
-            } else {
-                console.error('❌ Нет подходящего метода инициализации');
-                if (typeof window.treeManager.importData === 'function') {
-                    window.treeManager.importData(JSON.stringify(treeData));
-                }
-            }
+            console.log('TreeManager prototype методы:', 
+                Object.getOwnPropertyNames(TreeManager.prototype)
+                    .filter(name => typeof TreeManager.prototype[name] === 'function')
+            );
+
+            initializeTree(treeData);
         } else {
-            console.log('📁 Использую локальные данные');
-            if (typeof window.treeManager.init === 'function') {
-                window.treeManager.init();
-            }
+            console.log('📁 Нет данных, создаю пустое дерево');
+            initializeTree([]);
         }
     } catch (error) {
         console.error('❌ Ошибка загрузки:', error);
-        // Инициализируем без данных при ошибке
-        if (window.treeManager && typeof window.treeManager.init === 'function') {
-            window.treeManager.init();
-        }
+        initializeTree([]);
     }
     
-    setTimeout(() => setupGitHubControls(), 1000);
+    setTimeout(() => setupGitHubControls(), 500);
     
     setupIframeCommunication();
     
     console.log('✅ Приложение инициализировано');
-});
+}
+
+function initializeTree(treeData) {
+    if (!window.treeManager) {
+        console.error('❌ treeManager не создан');
+        return;
+    }
+    
+    const methods = ['init', 'initialize', 'loadTree', 'setData', 'loadData', 'setTreeData'];
+    
+    for (const method of methods) {
+        if (typeof window.treeManager[method] === 'function') {
+            console.log(`✅ Использую метод: ${method}`);
+            try {
+                window.treeManager[method](treeData);
+                return; // Успешно
+            } catch (methodError) {
+                console.warn(`Метод ${method} вызвал ошибку:`, methodError);
+            }
+        }
+    }
+    
+    console.log('⚠️ Прямые методы не работают, пробую альтернативы...');
+    
+    if (typeof window.treeManager.importData === 'function') {
+        console.log('✅ Использую importData');
+        window.treeManager.importData(JSON.stringify(treeData));
+        return;
+    }
+  
+    if (typeof window.treeManager.render === 'function') {
+        console.log('✅ Использую render');
+        window.treeManager.treeData = treeData; // Устанавливаем данные напрямую
+        window.treeManager.render();
+        return;
+    }
+    
+    console.log('⚠️ Сохраняю данные в localStorage для ручной загрузки');
+    localStorage.setItem('treeData_from_github', JSON.stringify(treeData));
+    
+    if (typeof window.treeManager.update === 'function') {
+        window.treeManager.treeData = treeData;
+        window.treeManager.update();
+    }
+    
+    console.error('❌ Не удалось инициализировать дерево');
+}
 
 function setupGitHubControls() {
     const controls = document.getElementById('controls');
     if (!controls) {
-        console.warn('❌ Элемент controls не найден');
+        console.log('🔄 controls не найден, создаю...');
+        createGitHubControls();
         return;
     }
     
-    const loadBtn = document.getElementById('loadFromGitHub');
-    const saveBtn = document.getElementById('saveToGitHub');
-    const status = document.getElementById('githubStatus');
+    let loadBtn = document.getElementById('loadFromGitHub');
+    let saveBtn = document.getElementById('saveToGitHub');
+    let status = document.getElementById('githubStatus');
+    
+    if (!loadBtn || !saveBtn) {
+        createGitHubControls();
+        loadBtn = document.getElementById('loadFromGitHub');
+        saveBtn = document.getElementById('saveToGitHub');
+        status = document.getElementById('githubStatus');
+    }
     
     if (!loadBtn || !saveBtn || !status) {
-        console.warn('❌ Кнопки GitHub не найдены в DOM');
+        console.error('❌ Не удалось создать кнопки GitHub');
         return;
     }
+    
     loadBtn.addEventListener('click', async () => {
         status.textContent = '⏳ Загрузка из GitHub...';
         status.style.color = '#007bff';
@@ -84,28 +137,12 @@ function setupGitHubControls() {
             const treeData = await window.githubLoader.loadTreeData();
             
             if (treeData && treeData.length > 0) {
-                // Пробуем разные методы загрузки
-                if (typeof window.treeManager.loadTree === 'function') {
-                    window.treeManager.loadTree(treeData);
-                } else if (typeof window.treeManager.setData === 'function') {
-                    window.treeManager.setData(treeData);
-                } else if (typeof window.treeManager.importData === 'function') {
-                    window.treeManager.importData(JSON.stringify(treeData));
-                } else {
-                    console.warn('⚠️ Нет метода для загрузки данных');
-                    status.textContent = '⚠️ Данные получены, но не отображены';
-                    status.style.color = '#ffc107';
-                    return;
-                }
-                
+                initializeTree(treeData);
                 status.textContent = `✅ Загружено ${treeData.length} элементов`;
                 status.style.color = '#28a745';
                 
-                // Обновляем iframe если нужно
                 if (window.IFRAME_MODE && window.parent !== window) {
-                    window.parent.postMessage({
-                        type: 'TREE_UPDATED'
-                    }, '*');
+                    window.parent.postMessage({ type: 'TREE_UPDATED' }, '*');
                 }
             } else {
                 status.textContent = '⚠️ Нет данных в GitHub';
@@ -123,6 +160,8 @@ function setupGitHubControls() {
             }
         }, 3000);
     });
+    
+    // Обработчик сохранения
     saveBtn.addEventListener('click', async () => {
         status.textContent = '⏳ Сохранение...';
         status.style.color = '#007bff';
@@ -130,18 +169,29 @@ function setupGitHubControls() {
         try {
             let treeData = [];
             
-            if (typeof window.treeManager.exportToJSON === 'function') {
-                treeData = window.treeManager.exportToJSON();
-            } else if (typeof window.treeManager.getTreeData === 'function') {
-                treeData = window.treeManager.getTreeData();
-            } else if (typeof window.treeManager.exportData === 'function') {
-                const dataStr = window.treeManager.exportData();
-                treeData = JSON.parse(dataStr);
-            } else {
-                status.textContent = '❌ Не могу получить данные для сохранения';
-                status.style.color = '#dc3545';
-                setTimeout(() => { status.textContent = ''; }, 3000);
-                return;
+            if (window.treeManager) {
+                const methods = ['exportToJSON', 'getTreeData', 'getData', 'exportData'];
+                
+                for (const method of methods) {
+                    if (typeof window.treeManager[method] === 'function') {
+                        try {
+                            const result = window.treeManager[method]();
+                            if (Array.isArray(result)) {
+                                treeData = result;
+                                break;
+                            } else if (typeof result === 'string') {
+                                treeData = JSON.parse(result);
+                                break;
+                            }
+                        } catch (e) {
+                            console.warn(`Метод ${method} не сработал:`, e);
+                        }
+                    }
+                }
+            }
+
+            if (treeData.length === 0 && window.treeManager && window.treeManager.treeData) {
+                treeData = window.treeManager.treeData;
             }
             
             if (!treeData || treeData.length === 0) {
@@ -159,7 +209,7 @@ function setupGitHubControls() {
                 status.textContent = '✅ Сохранено в GitHub!';
                 status.style.color = '#28a745';
             } else {
-                status.textContent = '⚠️ Сохранено локально (для GitHub нужен токен)';
+                status.textContent = '⚠️ Не удалось сохранить';
                 status.style.color = '#ffc107';
             }
         } catch (error) {
@@ -178,6 +228,21 @@ function setupGitHubControls() {
     console.log('✅ Кнопки GitHub настроены');
 }
 
+function createGitHubControls() {
+    const controls = document.getElementById('controls');
+    if (!controls) return;
+    
+    const githubHTML = `
+        <div class="github-buttons" style="display: flex; gap: 5px; align-items: center; margin: 5px 0; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 8px;">
+            <button id="loadFromGitHub" style="padding: 8px 12px; background: #2ea44f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">↻ Загрузить из GitHub</button>
+            <button id="saveToGitHub" style="padding: 8px 12px; background: #0366d6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">💾 Сохранить в GitHub</button>
+            <div id="githubStatus" style="font-size: 11px; color: #666; margin-left: 10px; min-width: 200px;"></div>
+        </div>
+    `;
+    
+    controls.insertAdjacentHTML('afterbegin', githubHTML);
+}
+
 function setupIframeCommunication() {
     if (window.IFRAME_MODE) {
         if (window.parent !== window) {
@@ -189,8 +254,12 @@ function setupIframeCommunication() {
             window.addEventListener('message', function(event) {
                 if (event.data.type === 'GET_TREE_DATA') {
                     let data = [];
-                    if (typeof window.treeManager.exportToJSON === 'function') {
-                        data = window.treeManager.exportToJSON();
+                    if (window.treeManager) {
+                        if (typeof window.treeManager.exportToJSON === 'function') {
+                            data = window.treeManager.exportToJSON();
+                        } else if (window.treeManager.treeData) {
+                            data = window.treeManager.treeData;
+                        }
                     }
                     window.parent.postMessage({
                         type: 'TREE_DATA',
@@ -228,8 +297,4 @@ document.addEventListener('mousemove', (e) => {
     window.mouseY = e.clientY;
 });
 
-window.initializeTreeFromGitHub = async function() {
-    console.log('🔧 Ручная инициализация из GitHub...');
-    const loadBtn = document.getElementById('loadFromGitHub');
-    if (loadBtn) loadBtn.click();
-};
+document.addEventListener('DOMContentLoaded', initializeApp);
