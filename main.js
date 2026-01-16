@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.treeManager.setData(treeData);
             } else {
                 console.error('❌ Нет подходящего метода инициализации');
-                // Пробуем через export/import если есть
                 if (typeof window.treeManager.importData === 'function') {
                     window.treeManager.importData(JSON.stringify(treeData));
                 }
