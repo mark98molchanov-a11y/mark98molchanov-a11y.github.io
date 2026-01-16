@@ -107,99 +107,75 @@ function setupGitHubLoader() {
     console.log('Настройка GitHub загрузчика...');
     
     const loadFromGitHubBtn = document.getElementById('loadFromGitHubBtn');
-    const githubModalBackdrop = document.getElementById('githubModalBackdrop');
-    const githubOwnerInput = document.getElementById('githubOwner');
-    const githubRepoInput = document.getElementById('githubRepo');
-    const githubTokenInput = document.getElementById('githubToken');
-    const githubLoadBtn = document.getElementById('githubLoadBtn');
-    const githubCancelBtn = document.getElementById('githubCancelBtn');
     
-    if (!loadFromGitHubBtn || !githubModalBackdrop) {
-        console.error('GitHub элементы не найдены на странице');
-        console.log('Найденные элементы:', {
-            loadFromGitHubBtn: !!loadFromGitHubBtn,
-            githubModalBackdrop: !!githubModalBackdrop,
-            githubOwnerInput: !!githubOwnerInput,
-            githubRepoInput: !!githubRepoInput
-        });
+    if (!loadFromGitHubBtn) {
+        console.error('Кнопка "Загрузить из GitHub" не найдена!');
+        console.log('Доступные кнопки:', document.querySelectorAll('button'));
         return;
     }
     
-    console.log('Все элементы GitHub загрузчика найдены');
+    console.log('Кнопка GitHub найдена, добавляем обработчик...');
     
-    loadFromGitHubBtn.addEventListener('click', () => {
-        console.log('Кнопка "Загрузить из GitHub" нажата');
-        githubOwnerInput.value = 'mark98molchanov-a11y';
-        githubRepoInput.value = 'mark98molchanov-a11y.github.io';
-        githubTokenInput.value = ''; 
-        githubModalBackdrop.style.display = 'flex';
-        githubOwnerInput.focus();
+    loadFromGitHubBtn.addEventListener('click', function() {
+        console.log('✅ Кнопка "Загрузить из GitHub" НАЖАТА!');
+        alert('Кнопка работает! Теперь откроется модальное окно...');
+        
+        const githubModalBackdrop = document.getElementById('githubModalBackdrop');
+        if (githubModalBackdrop) {
+            githubModalBackdrop.style.display = 'flex';
+            console.log('Модальное окно открыто');
+        } else {
+            console.error('Модальное окно не найдено!');
+            alert('Ошибка: модальное окно не найдено');
+        }
     });
     
-    githubCancelBtn.addEventListener('click', () => {
-        githubModalBackdrop.style.display = 'none';
-        githubOwnerInput.value = '';
-        githubRepoInput.value = '';
-        githubTokenInput.value = '';
-    });
+    const githubModalBackdrop = document.getElementById('githubModalBackdrop');
+    const githubCancelBtn = document.getElementById('githubCancelBtn');
+    const githubLoadBtn = document.getElementById('githubLoadBtn');
     
-    githubModalBackdrop.addEventListener('click', (e) => {
-        if (e.target === githubModalBackdrop) {
+    if (githubCancelBtn) {
+        githubCancelBtn.addEventListener('click', () => {
             githubModalBackdrop.style.display = 'none';
-        }
-    });
+        });
+    }
     
-    githubLoadBtn.addEventListener('click', async () => {
-        const owner = githubOwnerInput.value.trim();
-        const repo = githubRepoInput.value.trim();
-        const token = githubTokenInput.value.trim();
-        
-        console.log('Начало загрузки с GitHub:', { owner, repo, token: token ? 'есть' : 'нет' });
-        
-        if (!owner) {
-            alert('Введите имя владельца репозитория (например: mark98molchanov-a11y)');
-            return;
-        }
-        
-        if (!repo) {
-            alert('Введите название репозитория (например: mark98molchanov-a11y.github.io)');
-            return;
-        }
-        
-        githubLoadBtn.textContent = 'Загрузка...';
-        githubLoadBtn.disabled = true;
-        
-        try {
-            const treeData = await loadTreeFromGitHub(owner, repo, token);
+    if (githubLoadBtn) {
+        githubLoadBtn.addEventListener('click', async () => {
+            console.log('Начало загрузки из GitHub...');
+            alert('Функция загрузки вызвана. Проверьте консоль для деталей.');
             
-            if (treeData) {
-                console.log('Данные получены, загружаем в приложение...');
-                await loadTreeIntoApp(treeData);
-                githubModalBackdrop.style.display = 'none';
-                alert('✅ Дерево успешно загружено из GitHub!');
-            } else {
-                alert('⚠️ Не удалось найти данные дерева в репозитории');
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки из GitHub:', error);
-            alert('❌ Ошибка загрузки: ' + error.message);
-        } finally {
-            githubLoadBtn.textContent = 'Загрузить';
-            githubLoadBtn.disabled = false;
-        }
-    });
-    
-    [githubOwnerInput, githubRepoInput, githubTokenInput].forEach(input => {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                githubLoadBtn.click();
+            try {
+                const testData = await testGitHubConnection();
+                if (testData) {
+                    alert('Соединение с GitHub успешно!');
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
             }
         });
-    });
+    }
     
     console.log('GitHub загрузчик настроен');
 }
-
+async function testGitHubConnection() {
+    try {
+        console.log('Тестируем соединение с GitHub...');
+        const response = await fetch('https://api.github.com/repos/mark98molchanov-a11y/mark98molchanov-a11y.github.io');
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Репозиторий найден:', data.name);
+            console.log('Файлы в репозитории:', data);
+            return data;
+        } else {
+            throw new Error(`Ошибка ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('Ошибка соединения с GitHub:', error);
+        throw error;
+    }
+}
 async function loadTreeFromGitHub(owner, repo, token) {
     console.log(`Загрузка из GitHub: ${owner}/${repo}`);
     
@@ -591,4 +567,31 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('main.js загружен и готов');
+console.log('=== ДЕБАГ ИНФОРМАЦИЯ ===');
+console.log('Загруженные скрипты:');
+document.querySelectorAll('script').forEach(script => {
+    console.log('  -', script.src || 'inline');
+});
+
+console.log('Глобальные переменные:');
+console.log('  - window.treeManager:', typeof window.treeManager);
+console.log('  - window.nodeEffects:', typeof window.nodeEffects);
+console.log('  - TreeManager class:', typeof TreeManager);
+console.log('  - NodeEffects class:', typeof NodeEffects);
+
+console.log('Элементы управления:');
+const controlIds = [
+    'loadFromGitHubBtn',
+    'githubModalBackdrop',
+    'githubOwner',
+    'githubRepo',
+    'githubLoadBtn',
+    'githubCancelBtn'
+];
+
+controlIds.forEach(id => {
+    const element = document.getElementById(id);
+    console.log(`  - ${id}:`, element ? 'НАЙДЕН' : 'НЕ НАЙДЕН');
+});
+
+console.log('=== КОНЕЦ ДЕБАГ ИНФОРМАЦИИ ===');
